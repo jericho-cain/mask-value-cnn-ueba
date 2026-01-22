@@ -74,6 +74,8 @@ def parse_args():
                         help="Path to CERT data (for attack duration info)")
     parser.add_argument("--window-size", type=int, default=6,
                         help="Number of consecutive latent points per trajectory")
+    parser.add_argument("--stride", type=int, default=None,
+                        help="Step size between trajectory windows. Default: window_size // 2 (50%% overlap)")
     parser.add_argument("--min-attack-hours", type=float, default=1.0,
                         help="Minimum attack duration in hours to include")
     return parser.parse_args()
@@ -172,7 +174,7 @@ def main():
     # Fit reference statistics from training trajectories
     logger.info("Fitting reference statistics from training data...")
     train_trajectories = []
-    stride = args.window_size // 2  # 50% overlap
+    stride = args.stride if args.stride is not None else args.window_size // 2
     for i in range(0, len(train_latents) - args.window_size + 1, stride):
         traj = train_latents[i:i + args.window_size]
         train_trajectories.append(traj)

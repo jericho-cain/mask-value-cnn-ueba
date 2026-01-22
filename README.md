@@ -19,7 +19,7 @@ This repository implements a novel approach to behavioral anomaly detection that
 
 ```bash
 # Clone repository
-git clone https://github.com/YOUR_USERNAME/manifold-ueba.git
+git clone https://github.com/jericho-cain/manifoldUEBA.git
 cd manifold-ueba
 
 # Create virtual environment
@@ -49,35 +49,31 @@ tar -xjf ~/Downloads/r4.2.tar.bz2 -C data/cert/r4.2 --strip-components=1
 tar -xjf ~/Downloads/answers.tar.bz2 -C data/cert/r4.2
 ```
 
-### 2. Run Experiment Pipeline
+### 2. Process Data and Train Model
 
 ```bash
-# Quick validation (50 users, ~10-15 min)
-python examples/cert_data_pipeline.py \
-    --data-dir data/cert/r4.2 \
-    --sample 50 \
-    --bucket-hours 1.0 \
-    --sequence-length 24 \
-    --epochs 20 \
-    --grid-search
-
-# Full experiment (all users, 2-3 hours)
 python examples/cert_data_pipeline.py \
     --data-dir data/cert/r4.2 \
     --bucket-hours 1.0 \
     --sequence-length 24 \
     --min-attack-hours 24 \
     --epochs 50 \
+    --save-processed data/cert_full_1hr.npz \
+    --save-model data/cert_model_1hr.pt \
+    --save-manifold data/cert_manifold_1hr.npz \
     --grid-search
 ```
 
-### 3. Trajectory Analysis
+### 3. Run Trajectory Analysis
 
 ```bash
 python examples/trajectory_analysis.py \
-    --load-processed data/cert_processed.npz \
-    --load-model data/cert_model.pt \
-    --load-manifold data/cert_manifold.npz
+    --load-processed data/cert_full_1hr.npz \
+    --load-model data/cert_model_1hr.pt \
+    --load-manifold data/cert_manifold_1hr.npz \
+    --min-attack-hours 24 \
+    --window-size 6 \
+    --stride 3
 ```
 
 ## Scoring Model
@@ -131,7 +127,7 @@ If you use this code in your research, please cite:
   author = {Cain, Jericho},
   title = {Manifold UEBA: Geometric Anomaly Detection for User Behavior Analytics},
   year = {2025},
-  url = {https://github.com/YOUR_USERNAME/manifold-ueba}
+  url = {https://github.com/jericho-cain/manifoldUEBA}
 }
 ```
 

@@ -6,14 +6,10 @@ on CERT insider threat data with appropriate attack selection based on
 attack duration vs. temporal resolution.
 
 Usage:
-    # First, train and save model + manifold
-    python examples/cert_data_pipeline.py \
-        --data-dir data/cert/r4.2 --sample 50 --epochs 20 \
-        --save-processed data/cert_processed_50users.npz \
-        --save-model data/cert_model.pt \
-        --save-manifold data/cert_manifold.npz
+    # Run trajectory analysis from experiment directory
+    python examples/trajectory_analysis.py --load-experiment runs/exp001_50users_1hr_baseline
 
-    # Then run trajectory analysis
+    # Or specify paths directly
     python examples/trajectory_analysis.py \
         --load-processed data/cert_processed_50users.npz \
         --load-model data/cert_model.pt \
@@ -21,15 +17,17 @@ Usage:
 """
 
 import argparse
+import json
 import logging
 import sys
+from datetime import datetime
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 import torch
 from torch.utils.data import DataLoader
-from sklearn.metrics import roc_auc_score, average_precision_score
+from sklearn.metrics import roc_auc_score, average_precision_score, precision_recall_curve, confusion_matrix
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -64,12 +62,14 @@ def get_attack_durations(data_dir: Path) -> pd.DataFrame:
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Trajectory analysis on CERT data")
-    parser.add_argument("--load-processed", type=str, required=True,
+    parser.add_argument("--load-processed", type=str, default=None,
                         help="Path to processed data .npz file")
-    parser.add_argument("--load-model", type=str, required=True,
+    parser.add_argument("--load-model", type=str, default=None,
                         help="Path to trained model .pt file")
-    parser.add_argument("--load-manifold", type=str, required=True,
+    parser.add_argument("--load-manifold", type=str, default=None,
                         help="Path to manifold .npz file")
+    parser.add_argument("--load-experiment", type=str, default=None,
+                        help="Load from experiment directory (auto-sets load paths)")
     parser.add_argument("--data-dir", type=str, default="data/cert/r4.2",
                         help="Path to CERT data (for attack duration info)")
     parser.add_argument("--window-size", type=int, default=6,
@@ -81,8 +81,56 @@ def parse_args():
     return parser.parse_args()
 
 
+def setup_experiment(args) -> Path | None:
+    """Setup experiment paths from --load-experiment."""
+    if not args.load_experiment:
+        # Check that required paths are provided
+        if not all([args.load_processed, args.load_model, args.load_manifold]):
+            raise ValueError("Either --load-experiment or all of --load-processed, --load-model, --load-manifold required")
+        return None
+    
+    exp_dir = Path(args.load_experiment)
+    if not exp_dir.exists():
+        raise ValueError(f"Experiment directory not found: {exp_dir}")
+    
+    # Load config if exists
+    config_path = exp_dir / "config.json"
+    if config_path.exists():
+        with open(config_path) as f:
+            config = json.load(f)
+        logger.info(f"Loaded experiment config from {config_path}")
+    
+    # Set load paths from experiment directory
+    if not args.load_processed:
+        processed_path = exp_dir / "processed.npz"
+        if processed_path.exists():
+            args.load_processed = str(processed_path)
+        else:
+            raise ValueError(f"processed.npz not found in {exp_dir}")
+    
+    if not args.load_model:
+        model_path = exp_dir / "model.pt"
+        if model_path.exists():
+            args.load_model = str(model_path)
+        else:
+            raise ValueError(f"model.pt not found in {exp_dir}")
+    
+    if not args.load_manifold:
+        manifold_path = exp_dir / "manifold.npz"
+        if manifold_path.exists():
+            args.load_manifold = str(manifold_path)
+        else:
+            raise ValueError(f"manifold.npz not found in {exp_dir}")
+    
+    logger.info(f"Loading from experiment: {exp_dir}")
+    return exp_dir
+
+
 def main():
     args = parse_args()
+    
+    # Setup experiment if specified
+    exp_dir = setup_experiment(args)
     
     logger.info("=" * 60)
     logger.info("Trajectory Analysis on CERT Data")
@@ -322,6 +370,83 @@ def main():
     logger.info(f"{'ROC-AUC':<20} {point_roc_auc:<15.4f} {traj_roc_auc:<15.4f} {roc_imp:+.1f}%")
     logger.info(f"{'PR-AUC':<20} {point_pr_auc:<15.4f} {traj_pr_auc:<15.4f} {pr_imp:+.1f}%")
     logger.info(f"{'Separation':<20} {point_sep:<15.4f} {separation:<15.4f} {sep_imp:+.1f}%")
+    
+    # Confusion matrix at optimal F1 threshold
+    logger.info("\n" + "-" * 60)
+    logger.info("Confusion Matrix at Optimal F1 Threshold")
+    logger.info("-" * 60)
+    
+    def compute_optimal_f1_confusion(y_true, scores, method_name):
+        """Find optimal F1 threshold and return confusion matrix."""
+        precision, recall, thresholds = precision_recall_curve(y_true, scores)
+        # F1 = 2 * (precision * recall) / (precision + recall)
+        f1_scores = 2 * (precision[:-1] * recall[:-1]) / (precision[:-1] + recall[:-1] + 1e-8)
+        best_idx = np.argmax(f1_scores)
+        best_threshold = thresholds[best_idx]
+        best_f1 = f1_scores[best_idx]
+        best_precision = precision[best_idx]
+        best_recall = recall[best_idx]
+        
+        # Compute predictions at optimal threshold
+        predictions = (scores >= best_threshold).astype(int)
+        cm = confusion_matrix(y_true, predictions)
+        
+        logger.info(f"\n{method_name}:")
+        logger.info(f"  Optimal threshold: {best_threshold:.4f}")
+        logger.info(f"  F1: {best_f1:.4f}, Precision: {best_precision:.4f}, Recall: {best_recall:.4f}")
+        logger.info(f"  Confusion Matrix:")
+        logger.info(f"                    Predicted")
+        logger.info(f"                 Normal  Malicious")
+        logger.info(f"    Actual Normal   {cm[0,0]:5d}    {cm[0,1]:5d}")
+        logger.info(f"    Actual Malicious{cm[1,0]:5d}    {cm[1,1]:5d}")
+        
+        return cm, best_f1, best_threshold
+    
+    point_cm, point_f1, point_thresh = compute_optimal_f1_confusion(all_point_labels, all_point_scores, "Point-based")
+    traj_cm, traj_f1, traj_thresh = compute_optimal_f1_confusion(all_traj_labels, all_traj_scores, "Trajectory-based")
+    
+    # Save trajectory results to experiment directory
+    if exp_dir:
+        traj_results = {
+            'timestamp': datetime.now().isoformat(),
+            'parameters': {
+                'window_size': args.window_size,
+                'stride': stride,
+                'min_attack_hours': args.min_attack_hours,
+            },
+            'data_stats': {
+                'n_normal_samples': int(normal_mask.sum()),
+                'n_malicious_samples': int(malicious_mask.sum()),
+                'n_normal_trajectories': len(normal_scores),
+                'n_malicious_trajectories': len(malicious_scores),
+            },
+            'point_based': {
+                'roc_auc': float(point_roc_auc),
+                'pr_auc': float(point_pr_auc),
+                'separation': float(point_sep),
+                'optimal_f1': float(point_f1),
+                'optimal_threshold': float(point_thresh),
+                'confusion_matrix': point_cm.tolist(),
+            },
+            'trajectory_based': {
+                'roc_auc': float(traj_roc_auc),
+                'pr_auc': float(traj_pr_auc),
+                'separation': float(separation),
+                'optimal_f1': float(traj_f1),
+                'optimal_threshold': float(traj_thresh),
+                'confusion_matrix': traj_cm.tolist(),
+            },
+            'improvement': {
+                'roc_auc_pct': float(roc_imp),
+                'pr_auc_pct': float(pr_imp),
+                'separation_pct': float(sep_imp),
+            }
+        }
+        
+        traj_results_path = exp_dir / "trajectory_results.json"
+        with open(traj_results_path, 'w') as f:
+            json.dump(traj_results, f, indent=2)
+        logger.info(f"\nSaved trajectory results to {traj_results_path}")
     
     logger.info("\n" + "=" * 60)
     logger.info("Complete")

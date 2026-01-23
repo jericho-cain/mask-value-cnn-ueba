@@ -303,13 +303,130 @@ This validates the geodesic deviation hypothesis: insider threats manifest not j
 
 3. **Multi-day attacks:** Scenario 2 attacks (55 days average) are ideal candidates for trajectory analysis over weeks.
 
+## Experiment 002: All Malicious Users (2026-01-22)
+
+### Motivation
+
+Previous experiments sampled both normal and malicious users proportionally, resulting in only ~5 malicious users in the test set. This provides poor statistical power for evaluation. We implemented `--all-malicious` flag to include ALL 67 malicious users (with attacks >= 1 hour) in the test set while sampling only normal users for training.
+
+### Changes Implemented
+
+1. **`--all-malicious` flag**: New argument in `cert_data_pipeline.py` that:
+   - Samples N normal users for training (manifold construction)
+   - Includes ALL malicious users in test set (not sampled)
+
+2. **`--experiment` flag**: Experiment management system that:
+   - Creates `runs/<experiment_name>/` directory
+   - Saves all outputs: `config.json`, `processed.npz`, `model.pt`, `manifold.npz`
+   - Auto-generates `results.json` and `README.md`
+   - Trajectory results saved to `trajectory_results.json`
+
+3. **`--load-experiment` flag**: Load from existing experiment directory
+
+4. **Improved grid search**: 
+   - Normalized scoring (z-score both components, then mix)
+   - Expanded alpha/beta grid
+   - Reports both raw and normalized configurations
+
+### Configuration
+
+```bash
+python examples/cert_data_pipeline.py \
+    --data-dir data/cert/r4.2 \
+    --sample 50 \
+    --all-malicious \
+    --bucket-hours 1.0 \
+    --sequence-length 24 \
+    --min-attack-hours 1 \
+    --epochs 50 \
+    --grid-search \
+    --experiment exp002_50users_all_malicious
+
+python examples/trajectory_analysis.py \
+    --load-experiment runs/exp002_50users_all_malicious \
+    --window-size 6 \
+    --stride 3 \
+    --min-attack-hours 1
+```
+
+### Data Splits
+
+| Split | Sequences | Users |
+|-------|-----------|-------|
+| Training | 13,701 | 50 normal users |
+| Test (normal) | 3,425 | 50 normal users (20% holdout) |
+| Test (malicious) | 14,975 | ALL 67 malicious users |
+| **Total test** | **18,400** | 117 users |
+
+### Results: Point-Based Detection
+
+**Grid Search Finding**: Pure manifold distance (alpha=0) outperformed reconstruction error.
+
+| Method | ROC-AUC | PR-AUC | Optimal F1 |
+|--------|---------|--------|------------|
+| AE-only (beta=0) | 0.6492 | 0.8722 | 0.8974 |
+| Pure Manifold (w=0) | **0.7321** | **0.9217** | 0.8974 |
+
+**Improvement from manifold**: +12.8% ROC-AUC, +5.7% PR-AUC
+
+### Results: Trajectory-Based Detection
+
+| Method | ROC-AUC | PR-AUC | Optimal F1 |
+|--------|---------|--------|------------|
+| Point-based | 0.7321 | 0.9217 | 0.8974 |
+| **Trajectory-based** | **0.8468** | **0.9543** | **0.9250** |
+
+**Improvement from trajectory**: +15.7% ROC-AUC, +3.5% PR-AUC
+
+### Confusion Matrix at Optimal F1 (Trajectory)
+
+```
+                 Predicted
+              Normal  Malicious
+Actual Normal    497      643
+Actual Malicious 143     4847
+```
+
+- **Precision**: 88.3%
+- **Recall**: 97.1%  
+- **F1**: 92.5%
+
+### Key Findings
+
+1. **Manifold distance alone is sufficient**: Best grid search result used alpha=0 (pure manifold), suggesting reconstruction error adds noise rather than signal.
+
+2. **Trajectory analysis provides major improvement**: +15.7% ROC-AUC over point-based, confirming that temporal structure of attacks is discriminative.
+
+3. **All malicious users critical**: With full malicious set (67 users, 14,975 sequences), we have much better statistical power than previous 5-user samples.
+
+4. **High recall achievable**: 97% recall at 88% precision is operationally useful.
+
+### Artifacts
+
+All outputs saved to `runs/exp002_50users_all_malicious/`:
+- `config.json` - Experiment parameters
+- `processed.npz` - Processed sequences
+- `model.pt` - Trained CNN autoencoder
+- `manifold.npz` - Latent manifold
+- `results.json` - Point-based evaluation results
+- `trajectory_results.json` - Trajectory evaluation results
+- `README.md` - Auto-generated summary
+
+### Hypotheses for Future Work
+
+1. **More normal users → better manifold**: Denser manifold should improve separation. Test with 100, 200, all 930 normal users.
+
+2. **Scenario-stratified analysis**: Break down results by attack scenario to understand where trajectory analysis helps most.
+
+3. **Finer temporal resolution**: 15-minute buckets may capture intra-day attack patterns missed at hourly resolution.
+
 ## Next Steps
 
 1. **Scenario-stratified evaluation:** Report metrics separately for each attack scenario. Scenario 1 (after-hours exfiltration) is the primary target as it represents the hardest and most realistic case.
 
 2. **Reproducibility:** Add `--seed` argument for deterministic sampling and initialization
 
-3. **Full malicious set:** Modify sampling to always include all 70 malicious users, sample only from normal users
+3. ~~**Full malicious set:** Modify sampling to always include all 70 malicious users, sample only from normal users~~ ✓ Done (exp002)
 
 4. **Finer resolution:** Test 15-minute buckets (will require cluster resources for HTTP data)
 
@@ -320,6 +437,8 @@ This validates the geodesic deviation hypothesis: insider threats manifest not j
 7. **k-neighbors:** Sensitivity analysis on manifold k parameter
 
 8. **Temporal features:** Scenario 1 detection relies on after-hours patterns. Verify that `after_hours_logon` feature and temporal structure in sequences are capturing this signal.
+
+9. **Manifold density study:** Run exp003 with 100+ normal users to test hypothesis that denser manifold improves detection.
 
 ## File Locations
 

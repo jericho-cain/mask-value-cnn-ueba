@@ -8,25 +8,27 @@ This script demonstrates how to:
 4. Evaluate manifold-based anomaly detection
 
 Usage:
-    # First, download CERT data manually (see instructions)
-    python examples/cert_data_pipeline.py --data-dir data/cert/r4.2 --sample 50
-
-For local testing with small sample:
-    python examples/cert_data_pipeline.py --data-dir data/cert/r4.2 --sample 50
+    # Run new experiment (all outputs saved to runs/exp_name/)
+    python examples/cert_data_pipeline.py --data-dir data/cert/r4.2 --sample 50 --experiment my_experiment
+    
+    # Load from previous experiment
+    python examples/cert_data_pipeline.py --load-experiment runs/exp001_50users_1hr_baseline
 
 For full dataset (on cluster):
-    python examples/cert_data_pipeline.py --data-dir data/cert/r4.2
+    python examples/cert_data_pipeline.py --data-dir data/cert/r4.2 --experiment full_run
 """
 
 import argparse
+import json
 import logging
 import sys
+from datetime import datetime
 from pathlib import Path
 
 import numpy as np
 import torch
 from torch.utils.data import DataLoader
-from sklearn.metrics import roc_auc_score, average_precision_score, precision_recall_curve, roc_curve
+from sklearn.metrics import roc_auc_score, average_precision_score, precision_recall_curve, roc_curve, confusion_matrix
 
 # Add parent to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -68,6 +70,12 @@ def parse_args():
         type=float,
         default=None,
         help="Minimum attack duration in hours to include. Filters out shorter attacks."
+    )
+    parser.add_argument(
+        "--all-malicious",
+        action="store_true",
+        help="Include ALL malicious users in test set (sample only applies to normal users). "
+             "Provides better statistical power for evaluation."
     )
     parser.add_argument(
         "--sequence-length",
@@ -133,7 +141,101 @@ def parse_args():
         default=None,
         help="Load manifold from this .npz file (skips manifold construction)"
     )
+    # Experiment management
+    parser.add_argument(
+        "--experiment",
+        type=str,
+        default=None,
+        help="Experiment name. Creates runs/<name>/ directory with all outputs and config."
+    )
+    parser.add_argument(
+        "--load-experiment",
+        type=str,
+        default=None,
+        help="Load from existing experiment directory. Automatically sets load paths."
+    )
     return parser.parse_args()
+
+
+def setup_experiment(args) -> Path | None:
+    """Setup experiment directory and configure paths.
+    
+    Returns the experiment directory path, or None if not using experiment mode.
+    """
+    # Handle --load-experiment: load config and set paths
+    if args.load_experiment:
+        exp_dir = Path(args.load_experiment)
+        if not exp_dir.exists():
+            raise ValueError(f"Experiment directory not found: {exp_dir}")
+        
+        # Load config if it exists
+        config_path = exp_dir / "config.json"
+        if config_path.exists():
+            with open(config_path) as f:
+                config = json.load(f)
+            logger.info(f"Loaded experiment config from {config_path}")
+            # Restore relevant parameters from saved config
+            if 'bucket_hours' in config:
+                args.bucket_hours = config['bucket_hours']
+            if 'sequence_length' in config:
+                args.sequence_length = config['sequence_length']
+            if 'latent_dim' in config:
+                args.latent_dim = config['latent_dim']
+            if 'min_attack_hours' in config:
+                args.min_attack_hours = config['min_attack_hours']
+        
+        # Set load paths from experiment directory
+        processed_path = exp_dir / "processed.npz"
+        if processed_path.exists() and not args.load_processed:
+            args.load_processed = str(processed_path)
+        
+        model_path = exp_dir / "model.pt"
+        if model_path.exists() and not args.load_model:
+            args.load_model = str(model_path)
+        
+        manifold_path = exp_dir / "manifold.npz"
+        if manifold_path.exists() and not args.load_manifold:
+            args.load_manifold = str(manifold_path)
+        
+        logger.info(f"Loading from experiment: {exp_dir}")
+        return exp_dir
+    
+    # Handle --experiment: create directory and set save paths
+    if args.experiment:
+        exp_dir = Path("runs") / args.experiment
+        exp_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Set save paths to experiment directory
+        if not args.save_processed:
+            args.save_processed = str(exp_dir / "processed.npz")
+        if not args.save_model:
+            args.save_model = str(exp_dir / "model.pt")
+        if not args.save_manifold:
+            args.save_manifold = str(exp_dir / "manifold.npz")
+        
+        # Save config
+        config = {
+            'experiment': args.experiment,
+            'timestamp': datetime.now().isoformat(),
+            'data_dir': args.data_dir,
+            'sample': args.sample,
+            'bucket_hours': args.bucket_hours,
+            'sequence_length': args.sequence_length,
+            'latent_dim': args.latent_dim,
+            'epochs': args.epochs,
+            'min_attack_hours': args.min_attack_hours,
+            'all_malicious': args.all_malicious,
+            'grid_search': args.grid_search,
+        }
+        config_path = exp_dir / "config.json"
+        with open(config_path, 'w') as f:
+            json.dump(config, f, indent=2)
+        logger.info(f"Created experiment directory: {exp_dir}")
+        logger.info(f"Saved config to {config_path}")
+        
+        return exp_dir
+    
+    return None
 
 
 def main():
@@ -143,6 +245,9 @@ def main():
     if args.download_instructions:
         download_cert_dataset(args.data_dir)
         return
+    
+    # Setup experiment directory if specified
+    exp_dir = setup_experiment(args)
     
     data_dir = Path(args.data_dir)
     
@@ -175,7 +280,8 @@ def main():
                 n_users_sample=args.sample,
                 bucket_hours=args.bucket_hours,
                 sequence_length=args.sequence_length,
-                min_attack_hours=args.min_attack_hours
+                min_attack_hours=args.min_attack_hours,
+                include_all_malicious=args.all_malicious
             )
         except FileNotFoundError as e:
             logger.error(str(e))
@@ -380,11 +486,39 @@ def main():
         logger.info("\nRunning grid search over alpha/beta...")
         logger.info("-" * 60)
         
-        # Grid search parameters
-        alphas = [0.0, 0.25, 0.5, 0.75, 1.0]
-        betas = [0.0, 0.5, 1.0, 2.0, 4.0, 8.0]
+        # Normalize scores for fair comparison (z-score normalization)
+        recon_mean, recon_std = test_recon_errors.mean(), test_recon_errors.std()
+        manifold_mean, manifold_std = test_manifold_dists.mean(), test_manifold_dists.std()
+        
+        test_recon_normalized = (test_recon_errors - recon_mean) / (recon_std + 1e-8)
+        test_manifold_normalized = (test_manifold_dists - manifold_mean) / (manifold_std + 1e-8)
+        
+        logger.info(f"Reconstruction error: mean={recon_mean:.4f}, std={recon_std:.4f}")
+        logger.info(f"Manifold distance: mean={manifold_mean:.4f}, std={manifold_std:.4f}")
+        
+        # Search over mixing weights with normalized scores
+        # w=0 means pure manifold, w=1 means pure reconstruction
+        weights = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
         
         results = []
+        for w in weights:
+            scores = w * test_recon_normalized + (1 - w) * test_manifold_normalized
+            roc_auc = roc_auc_score(test_labels, scores)
+            pr_auc = average_precision_score(test_labels, scores)
+            
+            results.append({
+                'weight': w,
+                'alpha': w,  # For compatibility
+                'beta': 1 - w,  # For compatibility
+                'roc_auc': roc_auc,
+                'pr_auc': pr_auc,
+                'method': 'normalized'
+            })
+        
+        # Also search over raw alpha/beta for comparison (expanded grid)
+        alphas = [0.0, 0.1, 0.25, 0.5, 0.75, 1.0]
+        betas = [0.0, 0.25, 0.5, 1.0, 2.0, 4.0, 8.0, 16.0]
+        
         for alpha in alphas:
             for beta in betas:
                 if alpha == 0 and beta == 0:
@@ -395,33 +529,48 @@ def main():
                 pr_auc = average_precision_score(test_labels, scores)
                 
                 results.append({
+                    'weight': None,
                     'alpha': alpha,
                     'beta': beta,
                     'roc_auc': roc_auc,
-                    'pr_auc': pr_auc
+                    'pr_auc': pr_auc,
+                    'method': 'raw'
                 })
         
         # Sort by PR-AUC (most relevant for imbalanced data)
         results.sort(key=lambda x: x['pr_auc'], reverse=True)
         
-        logger.info("\nTop 10 configurations by PR-AUC:")
-        logger.info(f"{'Alpha':<8} {'Beta':<8} {'ROC-AUC':<10} {'PR-AUC':<10}")
-        logger.info("-" * 40)
-        for r in results[:10]:
-            logger.info(f"{r['alpha']:<8.2f} {r['beta']:<8.2f} {r['roc_auc']:<10.4f} {r['pr_auc']:<10.4f}")
+        logger.info("\nTop 15 configurations by PR-AUC:")
+        logger.info(f"{'Method':<12} {'Alpha/W':<8} {'Beta':<8} {'ROC-AUC':<10} {'PR-AUC':<10}")
+        logger.info("-" * 52)
+        for r in results[:15]:
+            if r['method'] == 'normalized':
+                logger.info(f"{'normalized':<12} {r['weight']:<8.2f} {1-r['weight']:<8.2f} {r['roc_auc']:<10.4f} {r['pr_auc']:<10.4f}")
+            else:
+                logger.info(f"{'raw':<12} {r['alpha']:<8.2f} {r['beta']:<8.2f} {r['roc_auc']:<10.4f} {r['pr_auc']:<10.4f}")
         
         # Use best config for detailed evaluation
         best = results[0]
-        alpha, beta = best['alpha'], best['beta']
-        logger.info(f"\nBest config: alpha={alpha}, beta={beta}")
+        if best['method'] == 'normalized':
+            # Use normalized scores for evaluation
+            alpha, beta = best['weight'], 1 - best['weight']
+            test_scores_combined = alpha * test_recon_normalized + beta * test_manifold_normalized
+            scoring_method = f"normalized w_recon={alpha:.2f}, w_manifold={beta:.2f}"
+            logger.info(f"\nBest config (normalized): w_recon={alpha}, w_manifold={beta}")
+        else:
+            alpha, beta = best['alpha'], best['beta']
+            test_scores_combined = alpha * test_recon_errors + beta * test_manifold_dists
+            scoring_method = f"raw alpha={alpha}, beta={beta}"
+            logger.info(f"\nBest config (raw): alpha={alpha}, beta={beta}")
     else:
-        # Default values
+        # Default values (no grid search)
         alpha = 0.5
         beta = 2.0
+        test_scores_combined = alpha * test_recon_errors + beta * test_manifold_dists
+        scoring_method = f"raw alpha={alpha}, beta={beta}"
     
-    # Compute scores with chosen alpha/beta
-    test_scores_combined = alpha * test_recon_errors + beta * test_manifold_dists
-    test_scores_ae_only = test_recon_errors  # beta=0 case
+    # AE-only scores (beta=0 case)
+    test_scores_ae_only = test_recon_errors
     
     # Compute separation metrics
     normal_mask = test_labels == 0
@@ -446,7 +595,7 @@ def main():
         logger.info(f"  Normal mean: {ae_normal_mean:.4f}, Malicious mean: {ae_malicious_mean:.4f}")
         logger.info(f"  Separation score: {ae_separation:.4f}")
         
-        logger.info(f"\nCombined (alpha={alpha}, beta={beta}):")
+        logger.info(f"\nCombined ({scoring_method}):")
         logger.info(f"  Normal mean: {comb_normal_mean:.4f}, Malicious mean: {comb_malicious_mean:.4f}")
         logger.info(f"  Separation score: {comb_separation:.4f}")
         
@@ -470,7 +619,7 @@ def main():
         logger.info(f"  ROC-AUC: {ae_roc_auc:.4f}")
         logger.info(f"  PR-AUC:  {ae_pr_auc:.4f}")
         
-        logger.info(f"\nCombined (alpha={alpha}, beta={beta}):")
+        logger.info(f"\nCombined ({scoring_method}):")
         logger.info(f"  ROC-AUC: {comb_roc_auc:.4f}")
         logger.info(f"  PR-AUC:  {comb_pr_auc:.4f}")
         
@@ -515,8 +664,142 @@ def main():
             
             logger.info(f"At {int(target_tpr*100)}% detection: AE-only FPR={ae_fpr_at_tpr:.2%}, Combined FPR={comb_fpr_at_tpr:.2%}")
         
+        # Confusion matrix at optimal F1 threshold
+        logger.info("\n" + "-" * 40)
+        logger.info("Confusion Matrix at Optimal F1 Threshold")
+        logger.info("-" * 40)
+        
+        def compute_optimal_f1_confusion(y_true, scores, method_name):
+            """Find optimal F1 threshold and return confusion matrix."""
+            precision, recall, thresholds = precision_recall_curve(y_true, scores)
+            # F1 = 2 * (precision * recall) / (precision + recall)
+            f1_scores = 2 * (precision[:-1] * recall[:-1]) / (precision[:-1] + recall[:-1] + 1e-8)
+            best_idx = np.argmax(f1_scores)
+            best_threshold = thresholds[best_idx]
+            best_f1 = f1_scores[best_idx]
+            best_precision = precision[best_idx]
+            best_recall = recall[best_idx]
+            
+            # Compute predictions at optimal threshold
+            predictions = (scores >= best_threshold).astype(int)
+            cm = confusion_matrix(y_true, predictions)
+            
+            logger.info(f"\n{method_name}:")
+            logger.info(f"  Optimal threshold: {best_threshold:.4f}")
+            logger.info(f"  F1: {best_f1:.4f}, Precision: {best_precision:.4f}, Recall: {best_recall:.4f}")
+            logger.info(f"  Confusion Matrix:")
+            logger.info(f"                    Predicted")
+            logger.info(f"                 Normal  Malicious")
+            logger.info(f"    Actual Normal   {cm[0,0]:5d}    {cm[0,1]:5d}")
+            logger.info(f"    Actual Malicious{cm[1,0]:5d}    {cm[1,1]:5d}")
+            
+            return cm, best_f1, best_threshold
+        
+        ae_cm, ae_f1, ae_thresh = compute_optimal_f1_confusion(test_labels, test_scores_ae_only, "AE-only (beta=0)")
+        comb_cm, comb_f1, comb_thresh = compute_optimal_f1_confusion(test_labels, test_scores_combined, f"Combined ({scoring_method})")
+        
+        # Collect results for saving
+        results = {
+            'timestamp': datetime.now().isoformat(),
+            'data_stats': {
+                'n_train': len(train_data),
+                'n_test': len(test_data),
+                'n_malicious': int(malicious_mask.sum()),
+                'n_normal': int(normal_mask.sum()),
+            },
+            'ae_only': {
+                'roc_auc': float(ae_roc_auc),
+                'pr_auc': float(ae_pr_auc),
+                'optimal_f1': float(ae_f1),
+                'optimal_threshold': float(ae_thresh),
+                'confusion_matrix': ae_cm.tolist(),
+            },
+            'combined': {
+                'scoring_method': scoring_method,
+                'roc_auc': float(comb_roc_auc),
+                'pr_auc': float(comb_pr_auc),
+                'optimal_f1': float(comb_f1),
+                'optimal_threshold': float(comb_thresh),
+                'confusion_matrix': comb_cm.tolist(),
+            }
+        }
+        
     else:
         logger.warning("Insufficient malicious or normal samples for evaluation")
+        results = {'error': 'Insufficient samples for evaluation'}
+    
+    # Save results to experiment directory
+    if exp_dir:
+        results_path = exp_dir / "results.json"
+        with open(results_path, 'w') as f:
+            json.dump(results, f, indent=2)
+        logger.info(f"Saved results to {results_path}")
+        
+        # Generate README
+        readme_path = exp_dir / "README.md"
+        
+        # Helper to format floats or return N/A
+        def fmt(val, decimals=4):
+            if isinstance(val, (int, float)):
+                return f"{val:.{decimals}f}"
+            return "N/A"
+        
+        # Extract values for README
+        ae_roc = results.get('ae_only', {}).get('roc_auc')
+        ae_pr = results.get('ae_only', {}).get('pr_auc')
+        ae_opt_f1 = results.get('ae_only', {}).get('optimal_f1')
+        comb_roc = results.get('combined', {}).get('roc_auc')
+        comb_pr = results.get('combined', {}).get('pr_auc')
+        comb_opt_f1 = results.get('combined', {}).get('optimal_f1')
+        comb_method = results.get('combined', {}).get('scoring_method', 'N/A')
+        
+        readme_content = f"""# Experiment: {args.experiment or exp_dir.name}
+
+**Date:** {datetime.now().strftime('%Y-%m-%d %H:%M')}
+
+## Parameters
+- **Sample size:** {args.sample or 'all'} users
+- **Bucket hours:** {args.bucket_hours}
+- **Sequence length:** {args.sequence_length}
+- **Latent dim:** {args.latent_dim}
+- **Epochs:** {args.epochs}
+- **Min attack hours:** {args.min_attack_hours or 'none'}
+- **All malicious:** {args.all_malicious}
+- **Grid search:** {args.grid_search}
+
+## Data Splits
+- **Training sequences:** {results.get('data_stats', {}).get('n_train', 'N/A')}
+- **Test sequences:** {results.get('data_stats', {}).get('n_test', 'N/A')}
+- **Malicious in test:** {results.get('data_stats', {}).get('n_malicious', 'N/A')}
+- **Normal in test:** {results.get('data_stats', {}).get('n_normal', 'N/A')}
+
+## Results
+
+### AE-only (beta=0)
+- ROC-AUC: {fmt(ae_roc)}
+- PR-AUC: {fmt(ae_pr)}
+- Optimal F1: {fmt(ae_opt_f1)}
+
+### Combined ({comb_method})
+- ROC-AUC: {fmt(comb_roc)}
+- PR-AUC: {fmt(comb_pr)}
+- Optimal F1: {fmt(comb_opt_f1)}
+
+## Files
+- `config.json` - Experiment configuration
+- `results.json` - Detailed evaluation results  
+- `processed.npz` - Processed data
+- `model.pt` - Trained CNN autoencoder
+- `manifold.npz` - Latent manifold data
+
+## Reproduction
+```bash
+python examples/cert_data_pipeline.py --load-experiment {exp_dir}
+```
+"""
+        with open(readme_path, 'w') as f:
+            f.write(readme_content)
+        logger.info(f"Generated README at {readme_path}")
     
     logger.info("\n" + "=" * 60)
     logger.info("Complete")

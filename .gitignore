@@ -77,6 +77,9 @@ logs/
 # Data directories (CERT dataset, processed data)
 data/
 
+# Experiment runs (checkpoints, results)
+runs/
+
 # Local-only documentation
 # docs/PUBLIC_REPO_PREP.md
 

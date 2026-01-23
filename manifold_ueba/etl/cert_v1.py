@@ -70,7 +70,6 @@ class CERTConfig:
     # Sampling
     n_users_sample: Optional[int] = None  # None = all users, int = sample N users
     random_seed: int = 42
-    include_all_malicious: bool = False  # If True, include ALL malicious users in test (sample only normal)
     
     # Train/test split
     test_ratio: float = 0.2  # Fraction of normal user sequences for test set
@@ -447,7 +446,6 @@ class CERTDataLoader:
         bucket_hours: Optional[float] = None,
         sequence_length: Optional[int] = None,
         min_attack_hours: Optional[float] = None,
-        include_all_malicious: Optional[bool] = None,
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Load and split CERT data into train and test sets.
@@ -459,16 +457,12 @@ class CERTDataLoader:
         ----------
         n_users_sample : int, optional
             Number of users to sample (for local testing). None = all users.
-            When include_all_malicious=True, this only samples normal users.
         bucket_hours : float, optional
             Hours per time bucket. Use 0.25 for 15-min buckets. Default from config.
         sequence_length : int, optional
             Number of buckets per sequence. Default from config.
         min_attack_hours : float, optional
             Minimum attack duration in hours to include. Filters out shorter attacks.
-        include_all_malicious : bool, optional
-            If True, include ALL malicious users in test set (sample only applies to normal).
-            This provides better statistical power for evaluation.
             
         Returns
         -------
@@ -488,8 +482,6 @@ class CERTDataLoader:
             self.config.sequence_length = sequence_length
         if min_attack_hours is not None:
             self.config.min_attack_hours = min_attack_hours
-        if include_all_malicious is not None:
-            self.config.include_all_malicious = include_all_malicious
         
         # Check data exists
         if not self._check_data_exists():
@@ -513,47 +505,31 @@ class CERTDataLoader:
         
         # Sample users if requested
         if self.config.n_users_sample is not None:
-            if self.config.include_all_malicious:
-                # New mode: sample only normal users, include ALL malicious in test
-                n_normal_sample = min(self.config.n_users_sample, len(normal_users))
-                
-                sampled_normal = list(self.rng.choice(
-                    normal_users,
-                    size=n_normal_sample,
+            n_sample = min(self.config.n_users_sample, len(all_users))
+            
+            # Proportional sampling to maintain ratio
+            n_malicious_sample = max(1, int(n_sample * len(malicious_users) / len(all_users)))
+            n_normal_sample = n_sample - n_malicious_sample
+            
+            if len(malicious_users) > 0:
+                sampled_malicious = list(self.rng.choice(
+                    list(malicious_users), 
+                    size=min(n_malicious_sample, len(malicious_users)),
                     replace=False
                 ))
-                
-                normal_users = sampled_normal
-                # malicious_users stays as-is (all of them)
-                
-                logger.info(f"Sampled {len(normal_users)} normal users, keeping ALL {len(malicious_users)} malicious users")
             else:
-                # Original mode: proportional sampling of both normal and malicious
-                n_sample = min(self.config.n_users_sample, len(all_users))
-                
-                # Proportional sampling to maintain ratio
-                n_malicious_sample = max(1, int(n_sample * len(malicious_users) / len(all_users)))
-                n_normal_sample = n_sample - n_malicious_sample
-                
-                if len(malicious_users) > 0:
-                    sampled_malicious = list(self.rng.choice(
-                        list(malicious_users), 
-                        size=min(n_malicious_sample, len(malicious_users)),
-                        replace=False
-                    ))
-                else:
-                    sampled_malicious = []
-                
-                sampled_normal = list(self.rng.choice(
-                    normal_users,
-                    size=min(n_normal_sample, len(normal_users)),
-                    replace=False
-                ))
-                
-                normal_users = sampled_normal
-                malicious_users = set(sampled_malicious)
-                
-                logger.info(f"Sampled {len(normal_users)} normal, {len(malicious_users)} malicious users")
+                sampled_malicious = []
+            
+            sampled_normal = list(self.rng.choice(
+                normal_users,
+                size=min(n_normal_sample, len(normal_users)),
+                replace=False
+            ))
+            
+            normal_users = sampled_normal
+            malicious_users = set(sampled_malicious)
+            
+            logger.info(f"Sampled {len(normal_users)} normal, {len(malicious_users)} malicious users")
         
         # Get date range
         start_date, end_date = self._get_date_range()

@@ -22,7 +22,7 @@ All experiments use the **same architecture and hyperparameters**, varying only 
 | Window Size | Mask PR-AUC | Combined PR-AUC | ROC-AUC | vs 24h |
 |-------------|-------------|-----------------|---------|--------|
 | **12-hour** | 0.277 | 0.282 | 0.736 | -61% |
-| **24-hour** ⭐ | **0.714** | 0.716 | 0.849 | baseline |
+| **24-hour**  | **0.714** | 0.716 | 0.849 | baseline |
 | **48-hour** | 0.682 | 0.682 | 0.879 | -4.5% |
 
 **Finding:** 24-hour windows are optimal for this task.
@@ -75,7 +75,7 @@ python examples/exp005_fixed_window_pipeline.py \
 
 ---
 
-### **Experiment 2: 24-Hour Windows (Baseline)** ⭐
+### **Experiment 2: 24-Hour Windows (Baseline)** 
 
 ```bash
 python examples/exp005_fixed_window_pipeline.py \
@@ -209,7 +209,7 @@ Pre-generated comparison plots are included:
 
 **CNN Autoencoder:**
 - **Input:** (T, F) where T = time buckets, F = 12 behavioral features
-- **Encoding:** T×F → (T/2)×(F/2) → (T/4)×(F/4) → latent_dim=32
+- **Encoding:** T×F  (T/2)×(F/2)  (T/4)×(F/4)  latent_dim=32
 - **Decoding:** Symmetric upsampling back to T×F
 - **Loss:** Dual-channel (mask + value) with temporal smoothness regularization
 
@@ -281,25 +281,25 @@ If you use this work, please cite:
 
 ```
 manifold-ueba/
-├── README.md                              # This file
-├── examples/
-│   └── exp005_fixed_window_pipeline.py   # Main experiment script
-├── manifold_ueba/
-│   ├── __init__.py
-│   ├── cnn_model.py                      # CNN autoencoder
-│   ├── data.py                           # Dataset classes
-│   ├── latent_manifold.py                # Manifold construction
-│   ├── trajectory.py                     # Trajectory scoring
-│   ├── scoring.py                        # Anomaly scoring
-│   └── etl/
-│       ├── __init__.py
-│       └── cert_fixed_window.py          # Data loader
-└── runs/
-    ├── exp012_lambda002_temp002/         # 24h results ⭐
-    ├── exp013_12hour_lambda002_temp002/  # 12h results
-    ├── exp014_48hour_lambda002_temp002/  # 48h results
-    ├── window_size_comparison_overall.png
-    └── window_size_comparison_all_scenarios.png
+ README.md                              # This file
+ examples/
+�    exp005_fixed_window_pipeline.py   # Main experiment script
+ manifold_ueba/
+�    __init__.py
+�    cnn_model.py                      # CNN autoencoder
+�    data.py                           # Dataset classes
+�    latent_manifold.py                # Manifold construction
+�    trajectory.py                     # Trajectory scoring
+�    scoring.py                        # Anomaly scoring
+�    etl/
+�        __init__.py
+�        cert_fixed_window.py          # Data loader
+ runs/
+     exp012_lambda002_temp002/         # 24h results 
+     exp013_12hour_lambda002_temp002/  # 12h results
+     exp014_48hour_lambda002_temp002/  # 48h results
+     window_size_comparison_overall.png
+     window_size_comparison_all_scenarios.png
 ```
 
 ---
@@ -329,6 +329,6 @@ For questions or issues, please open a GitHub issue or contact [your email].
 
 ---
 
-**Status:** ✅ Validated and reproducible  
+**Status:**  Validated and reproducible  
 **Best Configuration:** 24-hour windows (exp012_lambda002_temp002)  
 **Performance:** PR-AUC=0.714, Precision=1.00 (zero false alarms), Recall=0.56

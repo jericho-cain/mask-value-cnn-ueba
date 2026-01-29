@@ -109,7 +109,7 @@ class CERTFixedWindowLoader:
         later windows for each user.
         
         Args:
-            bucket_hours: Time bucket size within window (Δt)
+            bucket_hours: Time bucket size within window (�t)
             window_hours: Window size in hours (default 24)
             buffer_days: Temporal buffer around attacks (days)
             train_split: Fraction of normal windows for training (chronologically first X%)
@@ -475,7 +475,7 @@ class CERTFixedWindowLoader:
                 # Sort windows chronologically by start time
                 sorted_windows = sorted(user_normal_windows, key=lambda x: x['start'])
                 
-                # Split chronologically: first 80% → train, last 20% → test
+                # Split chronologically: first 80%  train, last 20%  test
                 train_windows = sorted_windows[:n_train]
                 test_windows = sorted_windows[n_train:]
                 

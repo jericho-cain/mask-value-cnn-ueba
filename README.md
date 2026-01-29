@@ -21,9 +21,9 @@ This repository contains a complete, reproducible implementation of a window siz
 
 | Window Size | Mask PR-AUC | Combined PR-AUC | ROC-AUC | Change vs 24h |
 |-------------|-------------|-----------------|---------|---------------|
-| **12-hour** | 0.277 | 0.282 | 0.736 | **-61%** ❌ |
-| **24-hour** ⭐ | **0.714** | 0.716 | 0.849 | **baseline** ✅ |
-| **48-hour** | 0.682 | 0.682 | 0.879 | **-4.5%** ⚠️ |
+| **12-hour** | 0.277 | 0.282 | 0.736 | **-61%**  |
+| **24-hour**  | **0.714** | 0.716 | 0.849 | **baseline**  |
+| **48-hour** | 0.682 | 0.682 | 0.879 | **-4.5%**  |
 
 **Interpretation:**
 - 12h windows: Insufficient context, too noisy
@@ -36,7 +36,7 @@ This repository contains a complete, reproducible implementation of a window siz
 |--------|---------------------------|------------------------------|
 | 12h | 0.178 | 0.377 |
 | 24h | **0.674** | **0.697** |
-| 48h | 0.677 | 0.331 ⚠️ |
+| 48h | 0.677 | 0.331  |
 
 **Notable:** 48h windows show **53% degradation** for removable media exfiltration (Scenario 3), indicating these attacks require finer temporal resolution.
 
@@ -65,7 +65,7 @@ python examples/exp005_fixed_window_pipeline.py \
     --epochs 50 --use-mask-value --lambda-value 0.02 \
     --use-temporal-reg --lambda-temporal 0.02 --grid-search
 
-# 24-hour windows (~10 min) ⭐ OPTIMAL
+# 24-hour windows (~10 min)  OPTIMAL
 python examples/exp005_fixed_window_pipeline.py \
     --experiment exp012_lambda002_temp002 \
     --data-dir data/cert/r4.2 --window-hours 24 \
@@ -90,7 +90,7 @@ python examples/exp005_fixed_window_pipeline.py \
 
 **CNN Autoencoder:**
 - **Input:** (T, F) where T = temporal buckets (12, 24, or 48), F = 12 behavioral features
-- **Encoding:** Spatial compression via strided convolutions → latent_dim=32
+- **Encoding:** Spatial compression via strided convolutions  latent_dim=32
 - **Decoding:** Symmetric upsampling via transposed convolutions
 - **Loss:** Dual-channel (mask + value) with temporal smoothness regularization
 
@@ -122,24 +122,24 @@ python examples/exp005_fixed_window_pipeline.py \
 
 ```
 manifold-ueba/
-├── README.md                                    # This file
-├── WINDOW_SIZE_ABLATION_README.md              # Detailed replication guide
-├── examples/
-│   └── exp005_fixed_window_pipeline.py         # Main experiment script
-├── manifold_ueba/
-│   ├── cnn_model.py                            # CNN autoencoder (flexible architecture)
-│   ├── data.py                                 # Dataset classes with temporal pairing
-│   ├── latent_manifold.py                      # Manifold construction
-│   ├── trajectory.py                           # Geodesic deviation scoring
-│   ├── scoring.py                              # Anomaly scoring utilities
-│   └── etl/
-│       └── cert_fixed_window.py                # CERT data loader (chronological split)
-└── runs/
-    ├── exp012_lambda002_temp002/               # 24h results ⭐
-    ├── exp013_12hour_lambda002_temp002/        # 12h results
-    ├── exp014_48hour_lambda002_temp002/        # 48h results
-    ├── window_size_comparison_overall.png      # Comparison plot (3 curves)
-    └── window_size_comparison_all_scenarios.png # Detailed comparison (6 curves)
+ README.md                                    # This file
+ WINDOW_SIZE_ABLATION_README.md              # Detailed replication guide
+ examples/
+�    exp005_fixed_window_pipeline.py         # Main experiment script
+ manifold_ueba/
+�    cnn_model.py                            # CNN autoencoder (flexible architecture)
+�    data.py                                 # Dataset classes with temporal pairing
+�    latent_manifold.py                      # Manifold construction
+�    trajectory.py                           # Geodesic deviation scoring
+�    scoring.py                              # Anomaly scoring utilities
+�    etl/
+�        cert_fixed_window.py                # CERT data loader (chronological split)
+ runs/
+     exp012_lambda002_temp002/               # 24h results 
+     exp013_12hour_lambda002_temp002/        # 12h results
+     exp014_48hour_lambda002_temp002/        # 48h results
+     window_size_comparison_overall.png      # Comparison plot (3 curves)
+     window_size_comparison_all_scenarios.png # Detailed comparison (6 curves)
 ```
 
 ---
@@ -156,7 +156,7 @@ manifold-ueba/
 
 Individual PR curves by attack scenario available for each window size:
 - [12-hour by scenario](runs/exp013_12hour_lambda002_temp002/pr_curve_by_scenario.png)
-- [24-hour by scenario](runs/exp012_lambda002_temp002/pr_curve_by_scenario.png) ⭐
+- [24-hour by scenario](runs/exp012_lambda002_temp002/pr_curve_by_scenario.png) 
 - [48-hour by scenario](runs/exp014_48hour_lambda002_temp002/pr_curve_by_scenario.png)
 
 ---
@@ -251,12 +251,12 @@ If you use this work, please cite:
 ## Reproducibility Statement
 
 This repository provides:
-- ✅ Complete source code
-- ✅ Exact hyperparameters
-- ✅ Deterministic data splits (chronological, seeded)
-- ✅ Pre-computed results (JSON + plots)
-- ✅ Step-by-step replication instructions
-- ✅ Expected outputs and runtimes
+-  Complete source code
+-  Exact hyperparameters
+-  Deterministic data splits (chronological, seeded)
+-  Pre-computed results (JSON + plots)
+-  Step-by-step replication instructions
+-  Expected outputs and runtimes
 
 **Variation:** Results should be within ±2% PR-AUC due to hardware/library version differences. Data split and architecture are deterministic.
 
@@ -277,5 +277,5 @@ MIT License - see LICENSE file for details.
 ---
 
 **Last Updated:** January 2026  
-**Status:** ✅ Paper submission ready  
+**Status:**  Paper submission ready  
 **Branch:** `feature/window-size-ablation`

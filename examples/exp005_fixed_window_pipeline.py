@@ -66,7 +66,7 @@ def parse_args():
     parser.add_argument('--data-dir', type=str, required=True, help='Path to CERT r4.2 directory')
     
     # Data parameters
-    parser.add_argument('--bucket-hours', type=float, default=1.0, help='Time bucket size in hours (Δt)')
+    parser.add_argument('--bucket-hours', type=float, default=1.0, help='Time bucket size in hours (�t)')
     parser.add_argument('--window-hours', type=int, default=24, help='Window size in hours')
     parser.add_argument('--buffer-days', type=int, default=7, help='Temporal buffer around attacks (days)')
     parser.add_argument('--train-split', type=float, default=0.8, help='Train split ratio for normal data')
@@ -332,7 +332,7 @@ def train_autoencoder(train_data, args, exp_dir, train_metadata=None):
         if avg_loss < best_loss - args.early_stop_delta:
             best_loss = avg_loss
             patience_counter = 0
-            logger.info(f"Epoch {epoch+1}/{args.epochs}, Loss: {avg_loss:.6f} ⭐ (improved)")
+            logger.info(f"Epoch {epoch+1}/{args.epochs}, Loss: {avg_loss:.6f}  (improved)")
         else:
             patience_counter += 1
             logger.info(f"Epoch {epoch+1}/{args.epochs}, Loss: {avg_loss:.6f} (patience: {patience_counter}/{args.early_stop_patience})")
@@ -690,7 +690,7 @@ def evaluate_method(scores, labels, metadata, method_name="Method"):
     # Log results
     logger.info(f"\n{method_name} Results:")
     logger.info(f"  ROC-AUC: {roc_auc:.4f}")
-    logger.info(f"  PR-AUC:  {pr_auc:.4f} ⭐ (primary metric)")
+    logger.info(f"  PR-AUC:  {pr_auc:.4f}  (primary metric)")
     logger.info(f"  Best F1: {best_f1:.4f} (threshold={best_threshold:.4f})")
     logger.info(f"    Precision: {best_precision:.4f}")
     logger.info(f"    Recall:    {best_recall:.4f}")
@@ -765,7 +765,7 @@ def grid_search_weights(recon_errors, off_manifold_dists, labels):
     grid_results_sorted = sorted(grid_results, key=lambda x: x[2], reverse=True)
     logger.info("Top 5 α/β combinations:")
     for i, (a, b, pr) in enumerate(grid_results_sorted[:5]):
-        logger.info(f"  {i+1}. α={a:.2f}, β={b:.2f} → PR-AUC={pr:.4f}")
+        logger.info(f"  {i+1}. α={a:.2f}, β={b:.2f}  PR-AUC={pr:.4f}")
     
     return best_alpha, best_beta, best_pr_auc, best_scores
 
@@ -831,7 +831,7 @@ def grid_search_weights_3(mask_scores, value_scores, off_manifold_dists, labels)
     grid_results_sorted = sorted(grid_results, key=lambda x: x[3], reverse=True)
     logger.info("Top 5 α_mask/α_value/β combinations:")
     for i, (am, av, b, pr) in enumerate(grid_results_sorted[:5]):
-        logger.info(f"  {i+1}. α_mask={am:.2f}, α_value={av:.2f}, β={b:.2f} → PR-AUC={pr:.4f}")
+        logger.info(f"  {i+1}. α_mask={am:.2f}, α_value={av:.2f}, β={b:.2f}  PR-AUC={pr:.4f}")
     
     return best_alpha_mask, best_alpha_value, best_beta, best_pr_auc, best_scores
 
@@ -1065,7 +1065,7 @@ def main():
     if args.quick_test:
         args.epochs = 5
         args.early_stop_patience = 3  # Shorter patience for quick test
-        logger.info("⚡ Quick test mode: epochs=5, early_stop_patience=3")
+        logger.info(" Quick test mode: epochs=5, early_stop_patience=3")
     
     # Setup experiment
     exp_dir = setup_experiment(args)
@@ -1148,11 +1148,11 @@ def main():
                        f"(α={window_results['combined']['alpha']:.2f}, β={window_results['combined']['beta']:.2f})")
     
     logger.info(f"\nTrajectory-Level Detection Performance (Geodesic Deviation):")
-    logger.info(f"  PR-AUC: {trajectory_results['pr_auc']:.4f} ⭐")
+    logger.info(f"  PR-AUC: {trajectory_results['pr_auc']:.4f} ")
     logger.info(f"  ROC-AUC: {trajectory_results['roc_auc']:.4f}")
     logger.info(f"  F1-score: {trajectory_results['best_f1']:.4f}")
     
-    logger.info("\n✓ Pipeline complete!")
+    logger.info("\n Pipeline complete!")
 
 
 if __name__ == '__main__':

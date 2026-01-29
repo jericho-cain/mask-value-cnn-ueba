@@ -1,0 +1,12 @@
+{
+  "temporal_smoothness": {
+    "normal": 1.1191571950912476,
+    "malicious": 1.1986427307128906,
+    "ratio": 1.071022629737854
+  },
+  "neighborhood_consistency": {
+    "normal": 0.2590047802488319,
+    "malicious": 0.10026927437641724,
+    "ratio": 2.583092197082343
+  }
+}

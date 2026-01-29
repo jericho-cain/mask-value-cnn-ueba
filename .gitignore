@@ -1,12 +1,8 @@
-# Byte-compiled / optimized / DLL files
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
-
-# C extensions
 *.so
-
-# Distribution / packaging
 .Python
 build/
 develop-eggs/
@@ -20,66 +16,81 @@ parts/
 sdist/
 var/
 wheels/
-share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
-
-# Virtual environments
+.pytest_cache/
 .venv/
 venv/
 ENV/
 env/
 
-# PyInstaller
-*.manifest
-*.spec
-
-# Installer logs
-pip-log.txt
-pip-delete-this-directory.txt
-
-# Unit test / coverage reports
-htmlcov/
-.tox/
-.nox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-*.py,cover
-.hypothesis/
-.pytest_cache/
-
-# Jupyter Notebook
-.ipynb_checkpoints
-
-# pyenv
-.python-version
-
-# macOS
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
 .DS_Store
 
-# Editor
-.idea/
-.vscode/
-
-# Logs
-logs/
-*.log
-
-# Local env
-.env
-.env.*
-
-# Data directories (CERT dataset, processed data)
+# Data files (too large for repo)
 data/
+*.csv
+*.npz
+*.npy
 
-# Experiment runs (checkpoints, results)
-runs/
+# Model files (too large for repo)
+*.pt
 
-# Local-only documentation
-# docs/PUBLIC_REPO_PREP.md
+# Documentation (not needed for replication)
+docs/
+CHANGELOG.md
+CURRENT_STATE_SUMMARY.md
+DOCUMENTATION_ORGANIZED.md
+MODEL_ARCHITECTURE_CHANGE_LOG.md
 
+# Analysis and diagnostic scripts (not needed for replication)
+analyze_loss_sweep.py
+compare_lambda_sweep.py
+density_diagnostic.py
+diagnose_latent_quality.py
+test_architecture_fix.py
+test_window_integrity.py
+
+# Plotting scripts (optional, not core)
+plot_pr_by_scenario.py
+plot_pr_curve.py
+plot_window_size_comparison.py
+
+# Shell scripts for ablations (not needed)
+run_ablation_c.sh
+run_block2_temporal.sh
+run_lambda_sweep.sh
+run_lambda_sweep_focused.sh
+run_loss_sweep.sh
+
+# Experiment results - IGNORE ALL except exp012, exp013, exp014
+runs/*
+!runs/exp012_lambda002_temp002/
+!runs/exp013_12hour_lambda002_temp002/
+!runs/exp014_48hour_lambda002_temp002/
+
+# Within kept experiments, ignore model files and data
+runs/exp012_lambda002_temp002/*.pt
+runs/exp012_lambda002_temp002/*.npz
+runs/exp013_12hour_lambda002_temp002/*.pt
+runs/exp013_12hour_lambda002_temp002/*.npz
+runs/exp014_48hour_lambda002_temp002/*.pt
+runs/exp014_48hour_lambda002_temp002/*.npz
+
+# Keep only results and plots
+!runs/exp012_lambda002_temp002/*.json
+!runs/exp012_lambda002_temp002/*.png
+!runs/exp013_12hour_lambda002_temp002/*.json
+!runs/exp013_12hour_lambda002_temp002/*.png
+!runs/exp014_48hour_lambda002_temp002/*.json
+!runs/exp014_48hour_lambda002_temp002/*.png
+
+# Comparison plots at root level
+!runs/window_size_comparison_all_scenarios.png
+!runs/window_size_comparison_overall.png

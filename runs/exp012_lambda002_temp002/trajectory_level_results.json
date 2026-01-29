@@ -1,0 +1,30 @@
+{
+  "roc_auc": 0.5324982357092449,
+  "pr_auc": 0.20772756009283982,
+  "best_f1": 0.24663677127554848,
+  "best_threshold": 0.006393489142024339,
+  "best_precision": 0.14435695538057744,
+  "best_recall": 0.8461538461538461,
+  "confusion_matrix": {
+    "tn": 110,
+    "fp": 326,
+    "fn": 10,
+    "tp": 55
+  },
+  "scenario_breakdown": {
+    "scenario_1": {
+      "total_windows": 494,
+      "malicious": 58,
+      "normal": 436,
+      "roc_auc": 0.5305480860487188,
+      "pr_auc": 0.20039714214019744
+    },
+    "scenario_3": {
+      "total_windows": 443,
+      "malicious": 7,
+      "normal": 436,
+      "roc_auc": 0.5486566186107471,
+      "pr_auc": 0.02679118735121862
+    }
+  }
+}

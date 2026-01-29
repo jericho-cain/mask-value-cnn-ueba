@@ -35,7 +35,7 @@ class UEBAManifoldConfig:
         Distance metric for k-NN ('euclidean', 'cosine', etc.), by default 'euclidean'
     """
     k_neighbors: int = 32
-    tangent_dim: int | None = None
+    tangent_dim: int | None = 8  # Fixed conservative value (recommended for latent_dim=32)
     metric: str = "euclidean"
 
 
@@ -201,6 +201,9 @@ class UEBALatentManifold:
         behavioral pattern manifold. High values indicate behavioral anomalies
         that violate typical user behavioral geometry.
         
+        **CRITICAL FIX:** Normalized by local neighborhood scale to make β
+        consistent across dense/sparse regions of latent space.
+        
         This is the key geometric score that enables manifold learning to detect
         anomalies that reconstruction error alone cannot capture.
         
@@ -212,16 +215,20 @@ class UEBALatentManifold:
         Returns
         -------
         float
-            Off-manifold distance (normal deviation) - the β component
+            Scale-normalized off-manifold distance (normal deviation) - the β component
         """
-        mu, U, _ = self._local_geometry(z)
+        mu, U, distances = self._local_geometry(z)
         r = z - mu           # Vector from local mean to query point (d,)
         
         # Project onto tangent space and compute normal component
         r_tangent = U @ (U.T @ r)  # Tangent component
         r_normal = r - r_tangent   # Normal component (off-manifold)
         
-        return float(np.linalg.norm(r_normal))
+        # Normalize by local neighborhood scale (median kNN distance)
+        # This makes β consistent across dense/sparse regions
+        local_scale = np.median(distances) if len(distances) > 0 else 1.0
+        
+        return float(np.linalg.norm(r_normal) / (local_scale + 1e-8))
 
     def density_score(self, z: np.ndarray) -> float:
         """
@@ -301,7 +308,13 @@ class UEBALatentManifold:
             neighbor_distances.append(np.mean(distances))
             
             # Compute how much variance the tangent space captures
-            neighbors = self.train_latents[self._nn.kneighbors([point], return_distance=False)[0]]
+            # Get k+1 neighbors and exclude self if present
+            distances_val, indices_val = self._nn.kneighbors([point], n_neighbors=self.config.k_neighbors+1, return_distance=True)
+            # Exclude self-match (distance < 1e-10)
+            if distances_val[0, 0] < 1e-10:
+                neighbors = self.train_latents[indices_val[0, 1:]]  # Exclude first (self)
+            else:
+                neighbors = self.train_latents[indices_val[0, :-1]]  # Exclude last
             centered = neighbors - mu
             if not np.allclose(centered, 0):
                 try:

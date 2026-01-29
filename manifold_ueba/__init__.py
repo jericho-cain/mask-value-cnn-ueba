@@ -6,16 +6,21 @@ manifold learning on CNN autoencoder latent spaces.
 
 import logging
 
-from manifold_ueba.cnn_model import UEBACNNAutoencoder, prepare_ueba_sequences_for_cnn, sequence_mse_2d
+from manifold_ueba.cnn_model import (
+    UEBACNNAutoencoder,
+    prepare_ueba_sequences_for_cnn,
+    sequence_mse_2d,
+    weighted_mse_loss,
+    two_term_mse_loss,
+    masked_value_mse,
+    MaskValueLoss,
+)
 from manifold_ueba.data import (
     SeqDataset,
+    WeightedSeqDataset,
+    MaskValueSeqDataset,
+    TemporalPairedMaskValueSeqDataset,
     compute_stats,
-    create_coordinated_attack,
-    create_isolated_edr_anomaly,
-    create_isolated_email_anomaly,
-    create_isolated_okta_anomaly,
-    generate_diverse_sequence,
-    make_diverse_timestep,
 )
 from manifold_ueba.grid_search import GridSearchResult, grid_search_alpha_beta
 from manifold_ueba.latent_manifold import UEBALatentManifold, UEBAManifoldConfig
@@ -26,6 +31,10 @@ __all__ = [
     # CNN Autoencoder
     "UEBACNNAutoencoder",
     "sequence_mse_2d",
+    "weighted_mse_loss",
+    "two_term_mse_loss",
+    "masked_value_mse",
+    "MaskValueLoss",
     "prepare_ueba_sequences_for_cnn",
     # Manifold Learning
     "UEBALatentManifold",
@@ -41,13 +50,10 @@ __all__ = [
     "create_trajectories_from_sequences",
     # Data utilities
     "SeqDataset",
+    "WeightedSeqDataset",
+    "MaskValueSeqDataset",
+    "TemporalPairedMaskValueSeqDataset",
     "compute_stats",
-    "create_coordinated_attack",
-    "create_isolated_edr_anomaly",
-    "create_isolated_email_anomaly",
-    "create_isolated_okta_anomaly",
-    "generate_diverse_sequence",
-    "make_diverse_timestep",
 ]
 
 __version__ = "0.1.0"

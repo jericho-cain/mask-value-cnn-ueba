@@ -837,7 +837,7 @@ def grid_search_weights_3(mask_scores, value_scores, off_manifold_dists, labels)
 
 
 def evaluate_trajectory_detection(
-    model, manifold, train_data, test_data, test_labels, test_metadata, mu, sigma, args, exp_dir
+    model, manifold, train_data, train_metadata, test_data, test_labels, test_metadata, mu, sigma, args, exp_dir
 ):
     """
     Evaluate trajectory-level detection using geodesic deviation analysis.
@@ -849,6 +849,7 @@ def evaluate_trajectory_detection(
         model: trained autoencoder
         manifold: UEBALatentManifold
         train_data: (N_train, T, F) training windows
+        train_metadata: DataFrame with user_id, window_start (for training)
         test_data: (N_test, T, F) test windows
         test_labels: (N_test,) binary labels
         test_metadata: DataFrame with user_id, window_start, scenario
@@ -1135,7 +1136,7 @@ def main():
     logger.info("Trajectory-Level Evaluation")
     logger.info("="*80)
     trajectory_results = evaluate_trajectory_detection(
-        model, manifold, train_data, test_data, test_labels, test_metadata, mu, sigma, args, exp_dir
+        model, manifold, train_data, train_metadata, test_data, test_labels, test_metadata, mu, sigma, args, exp_dir
     )
     
     # Summary

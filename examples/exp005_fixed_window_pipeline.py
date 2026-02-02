@@ -66,7 +66,7 @@ def parse_args():
     parser.add_argument('--data-dir', type=str, required=True, help='Path to CERT r4.2 directory')
     
     # Data parameters
-    parser.add_argument('--bucket-hours', type=float, default=1.0, help='Time bucket size in hours (�t)')
+    parser.add_argument('--bucket-hours', type=float, default=1.0, help='Time bucket size in hours (?t)')
     parser.add_argument('--window-hours', type=int, default=24, help='Window size in hours')
     parser.add_argument('--buffer-days', type=int, default=7, help='Temporal buffer around attacks (days)')
     parser.add_argument('--train-split', type=float, default=0.8, help='Train split ratio for normal data')
@@ -131,7 +131,7 @@ def setup_experiment(args):
     config['approach'] = 'fixed_window_24hr'
     config['description'] = '24-hour fixed windows for multi-day attack detection (1-7 days)'
     config['target_attacks'] = '26 users (16 Scenario 1, 10 Scenario 3)'
-    config['window_design'] = f'T={24//args.bucket_hours} buckets × {args.bucket_hours}hr = {args.window_hours}hr'
+    config['window_design'] = f'T={24//args.bucket_hours} buckets ? {args.bucket_hours}hr = {args.window_hours}hr'
     
     config_path = exp_dir / 'config.json'
     with open(config_path, 'w') as f:
@@ -195,17 +195,17 @@ def train_autoencoder(train_data, args, exp_dir, train_metadata=None):
         if args.use_temporal_reg:
             # Block 2: Use paired consecutive windows for temporal regularization
             train_dataset = TemporalPairedMaskValueSeqDataset(train_data, train_metadata, mu=mu, sigma=sigma)
-            logger.info(f"Using MASK+VALUE + TEMPORAL REGULARIZATION (λ_value={args.lambda_value}, λ_temp={args.lambda_temporal}, pos_weight={pos_weight:.3f})")
+            logger.info(f"Using MASK+VALUE + TEMPORAL REGULARIZATION (?_value={args.lambda_value}, ?_temp={args.lambda_temporal}, pos_weight={pos_weight:.3f})")
         else:
             train_dataset = MaskValueSeqDataset(train_data, mu=mu, sigma=sigma)
-            logger.info(f"Using MASK+VALUE dual-channel loss (λ_value={args.lambda_value}, pos_weight={pos_weight:.3f})")
+            logger.info(f"Using MASK+VALUE dual-channel loss (?_value={args.lambda_value}, pos_weight={pos_weight:.3f})")
     elif loss_type in ['weighted', 'two-term']:
         # Use weighted dataset that returns both raw and z-scored
         train_dataset = WeightedSeqDataset(train_data, mu=mu, sigma=sigma)
         if loss_type == 'weighted':
             logger.info(f"Using WEIGHTED MSE loss (w_inactive={args.w_inactive}, w_active={args.w_active})")
         else:
-            logger.info(f"Using TWO-TERM MSE loss (λ_active={args.lambda_active})")
+            logger.info(f"Using TWO-TERM MSE loss (?_active={args.lambda_active})")
     else:
         # Use standard dataset (z-scored only)
         train_dataset = SeqDataset(train_data, mu=mu, sigma=sigma)
@@ -529,31 +529,31 @@ def evaluate_window_detection(model, manifold, test_data, test_labels, test_meta
         
         # 3. Combined (grid search)
         if args.grid_search:
-            # 3a. Two-component: Total + β (for comparison with baseline)
+            # 3a. Two-component: Total + ? (for comparison with baseline)
             logger.info("\n" + "="*80)
-            logger.info("Method 3a: Combined Total+β (2-component)")
+            logger.info("Method 3a: Combined Total+? (2-component)")
             logger.info("="*80)
             
             best_alpha, best_beta, best_pr_auc, combined_scores = grid_search_weights(
                 total_scores, off_manifold_distances, test_labels
             )
             
-            logger.info(f"Best weights: α={best_alpha:.2f}, β={best_beta:.2f}, PR-AUC={best_pr_auc:.4f}")
+            logger.info(f"Best weights: ?={best_alpha:.2f}, ?={best_beta:.2f}, PR-AUC={best_pr_auc:.4f}")
             combined_2_results = evaluate_method(combined_scores, test_labels, test_metadata, method_name="Combined-2")
             combined_2_results['alpha'] = best_alpha
             combined_2_results['beta'] = best_beta
             results['combined_total_beta'] = combined_2_results
             
-            # 3b. Three-component: Mask + Value + β (full ablation)
+            # 3b. Three-component: Mask + Value + ? (full ablation)
             logger.info("\n" + "="*80)
-            logger.info("Method 3b: Combined Mask+Value+β (3-component)")
+            logger.info("Method 3b: Combined Mask+Value+? (3-component)")
             logger.info("="*80)
             
             best_am, best_av, best_b, best_pr_auc_3, combined_scores_3 = grid_search_weights_3(
                 mask_scores, value_scores, off_manifold_distances, test_labels
             )
             
-            logger.info(f"Best weights: α_mask={best_am:.2f}, α_value={best_av:.2f}, β={best_b:.2f}, PR-AUC={best_pr_auc_3:.4f}")
+            logger.info(f"Best weights: ?_mask={best_am:.2f}, ?_value={best_av:.2f}, ?={best_b:.2f}, PR-AUC={best_pr_auc_3:.4f}")
             combined_3_results = evaluate_method(combined_scores_3, test_labels, test_metadata, method_name="Combined-3")
             combined_3_results['alpha_mask'] = best_am
             combined_3_results['alpha_value'] = best_av
@@ -580,14 +580,14 @@ def evaluate_window_detection(model, manifold, test_data, test_labels, test_meta
         # 3. Combined (grid search for optimal alpha, beta)
         if args.grid_search:
             logger.info("\n" + "="*80)
-            logger.info("Method 3: Combined (Grid Search for α, β)")
+            logger.info("Method 3: Combined (Grid Search for ?, ?)")
             logger.info("="*80)
             
             best_alpha, best_beta, best_pr_auc, combined_scores = grid_search_weights(
                 reconstruction_errors, off_manifold_distances, test_labels
             )
             
-            logger.info(f"Best weights: α={best_alpha:.2f}, β={best_beta:.2f}, PR-AUC={best_pr_auc:.4f}")
+            logger.info(f"Best weights: ?={best_alpha:.2f}, ?={best_beta:.2f}, PR-AUC={best_pr_auc:.4f}")
             combined_results = evaluate_method(combined_scores, test_labels, test_metadata, method_name="Combined")
             combined_results['alpha'] = best_alpha
             combined_results['beta'] = best_beta
@@ -720,7 +720,7 @@ def grid_search_weights(recon_errors, off_manifold_dists, labels):
     """
     Grid search for optimal alpha and beta weights.
     
-    Combined score: S = α * recon_error + β * off_manifold_dist
+    Combined score: S = ? * recon_error + ? * off_manifold_dist
     
     Args:
         recon_errors: (N,) array
@@ -763,18 +763,18 @@ def grid_search_weights(recon_errors, off_manifold_dists, labels):
     
     # Log top 5 combinations
     grid_results_sorted = sorted(grid_results, key=lambda x: x[2], reverse=True)
-    logger.info("Top 5 α/β combinations:")
+    logger.info("Top 5 ?/? combinations:")
     for i, (a, b, pr) in enumerate(grid_results_sorted[:5]):
-        logger.info(f"  {i+1}. α={a:.2f}, β={b:.2f}  PR-AUC={pr:.4f}")
+        logger.info(f"  {i+1}. ?={a:.2f}, ?={b:.2f}  PR-AUC={pr:.4f}")
     
     return best_alpha, best_beta, best_pr_auc, best_scores
 
 
 def grid_search_weights_3(mask_scores, value_scores, off_manifold_dists, labels):
     """
-    Grid search for optimal α_mask, α_value, and β weights (3-component).
+    Grid search for optimal ?_mask, ?_value, and ? weights (3-component).
     
-    Combined score: S = α_mask * mask + α_value * value + β * off_manifold
+    Combined score: S = ?_mask * mask + ?_value * value + ? * off_manifold
     
     For Ablation C: separate weights for mask reconstruction, value reconstruction,
     and manifold geometry. Tells us whether:
@@ -829,9 +829,9 @@ def grid_search_weights_3(mask_scores, value_scores, off_manifold_dists, labels)
     
     # Log top 5 combinations
     grid_results_sorted = sorted(grid_results, key=lambda x: x[3], reverse=True)
-    logger.info("Top 5 α_mask/α_value/β combinations:")
+    logger.info("Top 5 ?_mask/?_value/? combinations:")
     for i, (am, av, b, pr) in enumerate(grid_results_sorted[:5]):
-        logger.info(f"  {i+1}. α_mask={am:.2f}, α_value={av:.2f}, β={b:.2f}  PR-AUC={pr:.4f}")
+        logger.info(f"  {i+1}. ?_mask={am:.2f}, ?_value={av:.2f}, ?={b:.2f}  PR-AUC={pr:.4f}")
     
     return best_alpha_mask, best_alpha_value, best_beta, best_pr_auc, best_scores
 
@@ -891,70 +891,85 @@ def evaluate_trajectory_detection(
     logger.info(f"Train latents: {train_latents.shape}, Test latents: {test_latents.shape}")
     
     # ===== Create sliding window trajectories =====
-    def create_sliding_trajectories(latents, metadata, labels, window_size=6, stride=3):
+    def build_trajectories_from_metadata(
+        latents: np.ndarray,
+        metadata: pd.DataFrame,
+        labels: np.ndarray | None,
+        window_size: int,
+        stride: int,
+        majority_p: float = 0.5,
+    ):
         """
-        Create sliding window trajectories from consecutive windows.
+        Build per-user sliding trajectories using aligned metadata.
         
-        Each trajectory is labeled as malicious if it OVERLAPS any malicious window.
-        This enables detection of multi-day attack campaigns at the trajectory level.
+        Unified builder that works for both train and test:
+        - metadata must have: user_id, window_start
+        - metadata may have: scenario (test has it, train doesn't)
+        - if labels is None: returns normal trajectories with labels=0
+        - if labels provided: returns both any-overlap and majority-overlap labels
         
         Args:
             latents: (N, latent_dim) array of latent vectors
-            metadata: DataFrame with user_id, window_start, scenario
-            labels: (N,) binary array
+            metadata: DataFrame with at least ['user_id', 'window_start']
+            labels: (N,) binary array or None (for training data)
             window_size: Number of consecutive windows per trajectory
             stride: Step size between trajectories
+            majority_p: Threshold for majority labeling (default 0.5 = 50%)
             
         Returns:
-            trajectories: list of (latent_array, label, user_id, scenario, start_idx) tuples
+            list of dicts with keys:
+                'user_id', 'start_global_idx', 'z', 
+                'label_any', 'label_majority', 'mal_frac', 'scenario'
         """
-        trajectories = []
-        users = metadata['user_id'].unique()
+        trajs = []
+        has_scenario = "scenario" in metadata.columns
         
-        for user_id in users:
-            user_mask = (metadata['user_id'] == user_id).values
-            user_indices = np.where(user_mask)[0]
+        for user_id, g in metadata.groupby("user_id", sort=False):
+            g_sorted = g.sort_values("window_start")
+            idx = g_sorted.index.to_numpy()  # indices into latents/labels (alignment guarantee)
             
-            # CRITICAL FIX: Sort by window_start to get chronological order
-            # All windows now have valid timestamps (no NaN)
-            user_metadata = metadata.iloc[user_indices].copy()
+            z = latents[idx]
+            y = labels[idx] if labels is not None else None
             
-            # Sort by window_start chronologically
-            time_order = user_metadata['window_start'].argsort().values
-            user_indices = user_indices[time_order]
-            
-            # Now extract with proper chronological ordering
-            user_latents = latents[user_indices]
-            user_labels = labels[user_indices]
-            user_scenarios = metadata.iloc[user_indices]['scenario'].values
-            
-            if len(user_latents) < window_size:
+            if len(z) < window_size:
                 continue
             
-            # Create sliding window trajectories for this user (FIXED: stride instead of window_size)
-            for i in range(0, len(user_latents) - window_size + 1, stride):
-                traj_latents = user_latents[i:i + window_size]
-                traj_labels = user_labels[i:i + window_size]
-                traj_scenarios = user_scenarios[i:i + window_size]
+            # only compute scenario array if it exists and we will need it
+            scen_arr = metadata.loc[idx, "scenario"].to_numpy() if has_scenario else None
+            
+            for s in range(0, len(z) - window_size + 1, stride):
+                inds = idx[s:s + window_size]
+                z_seq = z[s:s + window_size]
                 
-                # Trajectory is malicious if it OVERLAPS any malicious window
-                traj_label = 1 if (traj_labels == 1).any() else 0
-                
-                # Get scenario of malicious windows (if any)
-                if traj_label == 1:
-                    traj_scenario = traj_scenarios[traj_labels == 1][0]
+                if y is None:
+                    mal_frac = 0.0
+                    label_any = 0
+                    label_majority = 0
+                    scenario = 0
                 else:
-                    traj_scenario = 0
+                    y_seq = y[s:s + window_size]
+                    mal_frac = float(y_seq.mean())
+                    label_any = int(mal_frac > 0.0)
+                    label_majority = int(mal_frac >= majority_p)
+                    
+                    # scenario attribution: first malicious window scenario if available
+                    if label_any and has_scenario:
+                        scen_seq = scen_arr[s:s + window_size]
+                        scenario = int(scen_seq[y_seq == 1][0])
+                    else:
+                        scenario = 0
                 
-                trajectories.append((
-                    traj_latents, 
-                    traj_label, 
-                    user_id, 
-                    traj_scenario,
-                    user_indices[i]  # Global index for tracking
-                ))
+                trajs.append({
+                    "user_id": user_id,
+                    "start_global_idx": int(inds[0]),
+                    "z": z_seq,
+                    "label_any": label_any,
+                    "label_majority": label_majority,
+                    "mal_frac": mal_frac,
+                    "scenario": scenario,
+                })
         
-        return trajectories
+        return trajs
     
     # Trajectory parameters from args
     traj_window_size = args.traj_window_size
@@ -962,100 +977,111 @@ def evaluate_trajectory_detection(
     
     logger.info(f"Creating sliding window trajectories (window={traj_window_size}, stride={traj_stride})...")
     
-    # Training: create sliding trajectories from normal windows
-    # Use sequential chunks since we don't have user boundaries (all normal)
-    train_trajectories = []
-    for i in range(0, len(train_latents) - traj_window_size + 1, traj_stride):
-        chunk = train_latents[i:i + traj_window_size]
-        train_trajectories.append((chunk, 0, f"train_{i}", 0, i))  # (latents, label, pseudo_user, scenario, idx)
-    
-    # Test: create sliding trajectories per user with overlap-based labeling
-    test_trajectories = create_sliding_trajectories(
-        test_latents, test_metadata, test_labels, 
-        window_size=traj_window_size, 
-        stride=traj_stride
+    # Training: create per-user chronological trajectories from normal windows
+    # FIXED: Use train_metadata for proper per-user temporal sequences
+    train_trajectories = build_trajectories_from_metadata(
+        train_latents,
+        train_metadata,      # has user_id, window_start (no scenario)
+        labels=None,         # all normal
+        window_size=traj_window_size,
+        stride=traj_stride,
     )
     
-    # Count trajectory types
-    normal_test_trajs = [t for t in test_trajectories if t[1] == 0]
-    malicious_test_trajs = [t for t in test_trajectories if t[1] == 1]
+    # Test: create per-user trajectories with dual labeling (any-overlap + majority-overlap)
+    test_trajectories = build_trajectories_from_metadata(
+        test_latents,
+        test_metadata,       # has user_id, window_start, scenario
+        labels=test_labels,
+        window_size=traj_window_size,
+        stride=traj_stride,
+    )
     
-    # SANITY CHECK: Trajectory counts should match window-level proportions
-    # Window-level: ~112 malicious / 1609 total = 7%
-    # Trajectory-level: Should be similar (maybe slightly more due to overlap)
-    traj_mal_pct = len(malicious_test_trajs) / len(test_trajectories) * 100
-    window_mal_pct = test_labels.sum() / len(test_labels) * 100
+    # Extract labels and statistics
+    y_any = np.array([t["label_any"] for t in test_trajectories])
+    y_maj = np.array([t["label_majority"] for t in test_trajectories])
+    mal_frac = np.array([t["mal_frac"] for t in test_trajectories])
     
-    # Calculate actual overlap percentage
-    overlap_pct = (1 - traj_stride / traj_window_size) * 100
-    
+    # SANITY CHECK: Dual labeling statistics
     logger.info(f"Sliding window trajectories created:")
     logger.info(f"  Training: {len(train_trajectories)} normal trajectories")
-    logger.info(f"  Test: {len(test_trajectories)} total ({len(malicious_test_trajs)} malicious, {len(normal_test_trajs)} normal)")
+    logger.info(f"  Test: {len(test_trajectories)} total")
     logger.info(f"  Trajectory size: {traj_window_size} consecutive 24hr windows (= {traj_window_size} days)")
-    logger.info(f"  Overlap: stride={traj_stride} ({overlap_pct:.0f}% overlap)")
-    logger.info(f"  SANITY: Window-level malicious={window_mal_pct:.1f}%, Trajectory-level malicious={traj_mal_pct:.1f}%")
+    logger.info(f"  Overlap: stride={traj_stride} ({(1 - traj_stride/traj_window_size)*100:.0f}% overlap)")
+    logger.info(f"  SANITY: Window-level malicious={test_labels.mean()*100:.1f}%, Trajectory-level malicious={y_any.mean()*100:.1f}%")
+    logger.info(f"")
+    logger.info(f"Labeling semantics:")
+    logger.info(f"  Any-overlap positives: {(y_any==1).sum()} ({(y_any==1).mean()*100:.1f}%)")
+    logger.info(f"  Majority-overlap positives: {(y_maj==1).sum()} ({(y_maj==1).mean()*100:.1f}%)")
+    if (y_any==1).sum() > 0:
+        logger.info(f"  mal_frac among any-overlap positives: "
+                    f"mean={mal_frac[y_any==1].mean():.3f}, "
+                    f"median={np.median(mal_frac[y_any==1]):.3f}, "
+                    f"p90={np.percentile(mal_frac[y_any==1], 90):.3f}")
     
     # ===== Initialize TrajectoryAnalyzer and fit reference statistics =====
     logger.info("Fitting reference statistics from normal training trajectories...")
     traj_config = TrajectoryConfig(k_neighbors=args.k_neighbors, min_trajectory_length=4)
     analyzer = TrajectoryAnalyzer(manifold, config=traj_config)
     
-    # Fit on training trajectories
-    train_traj_arrays = [t for t, _, _, _, _ in train_trajectories]
+    # Fit on training trajectories (extract 'z' arrays from dicts)
+    train_traj_arrays = [t["z"] for t in train_trajectories]
     analyzer.fit_reference_statistics(train_traj_arrays)
     
     # ===== Score all test trajectories =====
     logger.info("Scoring test trajectories with geodesic deviation...")
     
-    trajectory_scores = []
-    trajectory_labels = []
-    trajectory_users = []
-    trajectory_scenarios = []
+    scores = np.array([analyzer.score_trajectory(t["z"]) for t in test_trajectories])
+    users = np.array([t["user_id"] for t in test_trajectories])
+    scenarios = np.array([t["scenario"] for t in test_trajectories])
     
-    for traj_latents, traj_label, user_id, scenario, start_idx in test_trajectories:
-        score = analyzer.score_trajectory(traj_latents)
-        trajectory_scores.append(score)
-        trajectory_labels.append(traj_label)
-        trajectory_users.append(user_id)
-        trajectory_scenarios.append(scenario)
+    logger.info(f"Scored {len(scores)} trajectories")
+    logger.info(f"  Score range: [{scores.min():.4f}, {scores.max():.4f}]")
+    logger.info(f"  Mean score: {scores.mean():.4f}")
     
-    trajectory_scores = np.array(trajectory_scores)
-    trajectory_labels = np.array(trajectory_labels)
-    trajectory_scenarios = np.array(trajectory_scenarios)
-    
-    logger.info(f"Scored {len(trajectory_scores)} trajectories")
-    logger.info(f"  Score range: [{trajectory_scores.min():.4f}, {trajectory_scores.max():.4f}]")
-    logger.info(f"  Mean score: {trajectory_scores.mean():.4f}")
-    
-    # ===== Evaluate trajectory-level metrics =====
+    # ===== Evaluate trajectory-level metrics (DUAL LABELING) =====
     logger.info("\n" + "="*80)
     logger.info("Trajectory-Level Detection (Geodesic Deviation)")
     logger.info("="*80)
     
-    # Create simple metadata for evaluation
-    traj_metadata_df = pd.DataFrame({'scenario': trajectory_scenarios})
+    # Create metadata for evaluation
+    traj_metadata_df = pd.DataFrame({'scenario': scenarios})
     
-    results = evaluate_method(trajectory_scores, trajectory_labels, traj_metadata_df, method_name="Trajectory (Geodesic)")
+    # Evaluate with ANY-overlap labeling
+    logger.info("\n--- Label Semantic: Any-Overlap ---")
+    results_any = evaluate_method(scores, y_any, traj_metadata_df, method_name="Trajectory (Any-overlap)")
     
-    # Save results
+    # Evaluate with MAJORITY-overlap labeling
+    logger.info("\n--- Label Semantic: Majority-Overlap (>=50%) ---")
+    results_maj = evaluate_method(scores, y_maj, traj_metadata_df, method_name="Trajectory (Majority-overlap)")
+    
+    # Save both results
     results_path = exp_dir / 'trajectory_level_results.json'
     with open(results_path, 'w') as f:
-        json.dump(results, f, indent=2)
+        json.dump({
+            "any_overlap": results_any,
+            "majority_overlap": results_maj,
+            "trajectory_config": {
+                "window_size": traj_window_size,
+                "stride": traj_stride,
+                "majority_threshold": 0.5
+            }
+        }, f, indent=2)
     logger.info(f"\nResults saved to: {results_path}")
     
-    # Save scores
+    # Save scores and all labels
     scores_path = exp_dir / 'trajectory_level_scores.npz'
     np.savez(
         scores_path,
-        trajectory_scores=trajectory_scores,
-        trajectory_labels=trajectory_labels,
-        trajectory_users=trajectory_users,
-        trajectory_scenarios=trajectory_scenarios
+        trajectory_scores=scores,
+        label_any=y_any,
+        label_majority=y_maj,
+        mal_frac=mal_frac,
+        trajectory_users=users,
+        trajectory_scenarios=scenarios
     )
     logger.info(f"Scores saved to: {scores_path}")
     
-    return results
+    return {"any_overlap": results_any, "majority_overlap": results_maj}
 
 
 def main():
@@ -1131,13 +1157,13 @@ def main():
         # Combined results (if grid search was run)
         if 'combined_total_beta' in window_results:
             c2 = window_results['combined_total_beta']
-            logger.info(f"  Combined (Total+β): PR-AUC={c2['pr_auc']:.4f}, ROC-AUC={c2['roc_auc']:.4f} "
-                       f"(α={c2['alpha']:.2f}, β={c2['beta']:.2f})")
+            logger.info(f"  Combined (Total+?): PR-AUC={c2['pr_auc']:.4f}, ROC-AUC={c2['roc_auc']:.4f} "
+                       f"(?={c2['alpha']:.2f}, ?={c2['beta']:.2f})")
         
         if 'combined_mask_value_beta' in window_results:
             c3 = window_results['combined_mask_value_beta']
-            logger.info(f"  Combined (Mask+Value+β): PR-AUC={c3['pr_auc']:.4f}, ROC-AUC={c3['roc_auc']:.4f} "
-                       f"(α_mask={c3['alpha_mask']:.2f}, α_value={c3['alpha_value']:.2f}, β={c3['beta']:.2f})")
+            logger.info(f"  Combined (Mask+Value+?): PR-AUC={c3['pr_auc']:.4f}, ROC-AUC={c3['roc_auc']:.4f} "
+                       f"(?_mask={c3['alpha_mask']:.2f}, ?_value={c3['alpha_value']:.2f}, ?={c3['beta']:.2f})")
     else:
         # Baseline: Show standard results
         logger.info(f"  AE-Only:      PR-AUC={window_results['ae_only']['pr_auc']:.4f}, ROC-AUC={window_results['ae_only']['roc_auc']:.4f}")
@@ -1145,12 +1171,17 @@ def main():
         
         if 'combined' in window_results:
             logger.info(f"  Combined:     PR-AUC={window_results['combined']['pr_auc']:.4f}, ROC-AUC={window_results['combined']['roc_auc']:.4f} "
-                       f"(α={window_results['combined']['alpha']:.2f}, β={window_results['combined']['beta']:.2f})")
+                       f"(?={window_results['combined']['alpha']:.2f}, ?={window_results['combined']['beta']:.2f})")
     
     logger.info(f"\nTrajectory-Level Detection Performance (Geodesic Deviation):")
-    logger.info(f"  PR-AUC: {trajectory_results['pr_auc']:.4f} ")
-    logger.info(f"  ROC-AUC: {trajectory_results['roc_auc']:.4f}")
-    logger.info(f"  F1-score: {trajectory_results['best_f1']:.4f}")
+    logger.info(f"  Any-overlap labeling:")
+    logger.info(f"    PR-AUC: {trajectory_results['any_overlap']['pr_auc']:.4f}")
+    logger.info(f"    ROC-AUC: {trajectory_results['any_overlap']['roc_auc']:.4f}")
+    logger.info(f"    F1-score: {trajectory_results['any_overlap']['best_f1']:.4f}")
+    logger.info(f"  Majority-overlap labeling (>=50%):")
+    logger.info(f"    PR-AUC: {trajectory_results['majority_overlap']['pr_auc']:.4f}")
+    logger.info(f"    ROC-AUC: {trajectory_results['majority_overlap']['roc_auc']:.4f}")
+    logger.info(f"    F1-score: {trajectory_results['majority_overlap']['best_f1']:.4f}")
     
     logger.info("\n Pipeline complete!")
 

@@ -134,22 +134,77 @@ The `mal_frac` diagnostics reveal the core problem:
    - **Dynamics:** Trajectory velocity/acceleration norms
    - **Predictability:** Deviation from linear temporal model
 
+### Deep Dive: Why Geodesic Deviation Fails on Diluted Labels
+
+**Current Approach:**
+- Geodesic deviation treats entire T=6 trajectory as single unit
+- Measures trajectory shape/smoothness through latent space
+- With temporal regularization, expects sustained anomalies
+
+**Problem:**
+- Positives are often "2-3 bad days embedded in 3-4 normal days"
+- Geodesic deviation averages over entire sequence
+- Anomalous signal gets diluted by normal segments
+
+**Evidence:**
+- median mal_frac=0.50 → typical positive is 3 malicious + 3 normal
+- Only 10% (p90=0.83) are sustained campaigns
+- ROC-AUC 0.53 vs PR-AUC 0.23 → ranking exists but precision suffers in high-imbalance regime
+
+**Implication:**
+The task is **aggregation-limited**, not geometry-limited. We need scoring that concentrates on anomalous subsegments (top-k) rather than smoothness-sensitive metrics.
+
+### Technical Note: Positive Rate Inflation
+
+Window-level: 7.0% malicious
+Trajectory any-overlap: 13.0% malicious
+
+This doubling is expected (overlap + "any" labeling creates inflation), but means:
+- Any-overlap should be treated as **sensitivity metric**, not main claim
+- Campaign discovery story should rely on majority/k-of-T semantics
+- Always report positive rate alongside PR-AUC
+
 ---
 
-## Phase 1: Flat Scoring Functionals (Planned)
+## Phase 1: Energy Baseline Aggregators
 
-### Goals
-1. Test if better aggregation of window-level scores improves trajectory detection
-2. Compare accumulation strategies (sum, mean, max, top-k)
-3. Evaluate dynamics features (velocity, acceleration)
-4. Try predictability deviation (linear model residuals)
+### Rationale
 
-### Hypothesis
-Window-level scores are strong (PR-AUC 0.698). If we aggregate them intelligently along trajectories, we should capture "one or two bad days" better than single geodesic deviation score.
+**Key Insight:** Window-level detection is strong (PR-AUC 0.698). Most campaigns manifest as "2-3 highly anomalous days" embedded in normal behavior. Current geodesic deviation averages over entire trajectory, diluting the signal.
+
+**Hypothesis:** Simple aggregation of per-window scores will outperform trajectory-shape metrics for diluted positives.
+
+### Aggregation Methods
+
+For each trajectory with per-window scores `[s_1, s_2, ..., s_T]`:
+
+1. **Sum:** `sum(s_t)` - Total anomaly budget
+2. **Mean:** `mean(s_t)` - Average anomaly level
+3. **Top-k Mean:** `mean(top-k largest s_t)` - Focus on worst k days
+   - k=2: "at least 2 bad days"
+   - k=3: "at least 3 bad days"
+
+### Window-Level Scores to Aggregate
+
+1. **mask_bce** (primary) - Mask channel BCE, best window-level detector
+2. **ae_total** (backup) - Combined mask+value reconstruction loss
+3. **beta** (geometry-only) - Off-manifold distance
+
+### Experiment Design
+
+**Configuration:**
+- T=6, stride=3 (baseline from exp015)
+- Same dual labeling (any-overlap, majority-overlap)
+- Use existing window-level scores from exp015
+
+**Expected Outcome:**
+- If `top-k(mask_bce)` beats 0.229 materially → aggregation-limited (not geometry-limited)
+- Best k value reveals campaign characteristics (k=2 vs k=3)
 
 ### Success Criteria
 - Any-overlap PR-AUC > 0.30 (vs current 0.229)
-- Identify which functional works best for diluted labels
+- Top-k outperforms mean/sum (confirms sparse-anomaly hypothesis)
+- Majority-overlap improves (better at identifying concentrated anomalies)
 
 ---
 

@@ -151,7 +151,7 @@ def main():
         trajectory_labels, 
         trajectory_scenarios,
         scenario_id=1,
-        scenario_name="Scenario 1: Data Exfiltration via Email",
+        scenario_name="Scenario 1: Insider Threat (CERT r4.2)",
         output_path=exp_dir / 'pr_curve_scenario1_top2.png'
     )
     print()
@@ -163,7 +163,7 @@ def main():
         trajectory_labels, 
         trajectory_scenarios,
         scenario_id=3,
-        scenario_name="Scenario 3: Removable Media",
+        scenario_name="Scenario 3: Insider Threat (CERT r4.2)",
         output_path=exp_dir / 'pr_curve_scenario3_top2.png'
     )
     print()

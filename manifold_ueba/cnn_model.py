@@ -11,7 +11,7 @@ Following the successful approach from gravitational wave detection, this model:
 
 Key features:
 - Input dimensions: (T, F) = (time buckets, behavioral features), T and F must be divisible by 4
-- Spatial compression: T×F  (T/2)×(F/2)  (T/4)×(F/4)  latent_dim
+- Spatial compression: TF  (T/2)(F/2)  (T/4)(F/4)  latent_dim
 - Decoder outputs exact dimensions (no interpolation)
 - Linear output head for z-scored regression (no tanh clipping)
 - Trains on normal behavioral patterns
@@ -94,29 +94,29 @@ class UEBACNNAutoencoder(nn.Module):
         self.flattened_size = 64 * self.encoded_time * self.encoded_features
         
         # Encoder: Extract behavioral pattern features from (time, features) space
-        # Architecture designed specifically for 24×12 CERT dimensions
-        # Spatial path: 24×12  12×6  6×3  latent_dim
+        # Architecture designed specifically for 2412 CERT dimensions
+        # Spatial path: 2412  126  63  latent_dim
         self.encoder = nn.Sequential(
             # First conv: capture local time-feature correlations
-            # 24×12  24×12
+            # 2412  2412
             # NOTE: in_channels=2 for Ablation C (mask + value dual-channel)
             nn.Conv2d(2, 16, kernel_size=3, stride=1, padding=1),
             nn.ReLU(),
             nn.Dropout2d(dropout),
             
             # Second conv: capture broader behavioral patterns
-            # 24×12  12×6
+            # 2412  126
             nn.Conv2d(16, 32, kernel_size=3, stride=2, padding=1),
             nn.ReLU(), 
             nn.Dropout2d(dropout),
             
             # Third conv: high-level behavioral abstractions
-            # 12×6  6×3
+            # 126  63
             nn.Conv2d(32, 64, kernel_size=3, stride=2, padding=1),
             nn.ReLU(),
             nn.Dropout2d(dropout),
             
-            # Flatten spatial dimensions: (T//4)×(F//4)×64
+            # Flatten spatial dimensions: (T//4)(F//4)64
             nn.Flatten(),
             
             # Map to latent space
@@ -126,8 +126,8 @@ class UEBACNNAutoencoder(nn.Module):
         )
         
         # Decoder: Reconstruct behavioral patterns from latent space
-        # Architecture designed to output exactly T×F without interpolation
-        # Spatial path: latent_dim  (T//4)×(F//4)  (T//2)×(F//2)  T×F
+        # Architecture designed to output exactly TF without interpolation
+        # Spatial path: latent_dim  (T//4)(F//4)  (T//2)(F//2)  TF
         self.decoder = nn.Sequential(
             # Map from latent back to spatial features
             nn.Linear(latent_dim, self.flattened_size),
@@ -136,15 +136,15 @@ class UEBACNNAutoencoder(nn.Module):
             nn.Unflatten(1, (64, self.encoded_time, self.encoded_features)),
             
             # Upsampling convolutions to reconstruct behavioral patterns
-            # 6×3  12×6 (output_padding=(1,1) for exact dimensions)
+            # 63  126 (output_padding=(1,1) for exact dimensions)
             nn.ConvTranspose2d(64, 32, kernel_size=3, stride=2, padding=1, output_padding=(1, 1)),
             nn.ReLU(),
             
-            # 12×6  24×12 (output_padding=(1,1) for exact dimensions)
+            # 126  2412 (output_padding=(1,1) for exact dimensions)
             nn.ConvTranspose2d(32, 16, kernel_size=3, stride=2, padding=1, output_padding=(1, 1)),
             nn.ReLU(),
             
-            # Final reconstruction layer: 24×12  24×12
+            # Final reconstruction layer: 2412  2412
             # NOTE: out_channels=2 for Ablation C: [mask_logits, value_hat]
             nn.Conv2d(16, 2, kernel_size=3, stride=1, padding=1)
             # Linear output: channel 0 = mask logits, channel 1 = value (no activation)
@@ -172,7 +172,7 @@ class UEBACNNAutoencoder(nn.Module):
         # Encode to latent behavioral pattern representation
         latent = self.encoder(x)
         
-        # Decode back to behavioral sequence (outputs exact dimensions: 24×13)
+        # Decode back to behavioral sequence (outputs exact dimensions: 2413)
         reconstructed = self.decoder(latent)
         
         return reconstructed, latent
@@ -209,7 +209,7 @@ class UEBACNNAutoencoder(nn.Module):
         torch.Tensor
             Reconstructed behavioral sequences, shape (batch_size, 1, time_steps, n_features)
         """
-        # Decoder outputs exact dimensions (24×13), no interpolation needed
+        # Decoder outputs exact dimensions (2413), no interpolation needed
         return self.decoder(latent)
     
     def get_model_info(self) -> dict[str, Any]:
@@ -267,7 +267,7 @@ def two_term_mse_loss(
     Gentler alternative to weighted loss. Preserves baseline reconstruction
     while still encouraging learning of activity patterns.
     
-    loss = MSE(all) + λ * MSE(active_only)
+    loss = MSE(all) +  * MSE(active_only)
     
     Parameters
     ----------
@@ -340,8 +340,8 @@ class MaskValueLoss(nn.Module):
     """
     Dual-channel loss for mask + value reconstruction (Ablation C).
     
-    loss = BCEWithLogits(mask_logits, mask_true) + λ_value * masked_MSE(value_hat, value_true | mask_true)
-          + λ_temporal * ||z_t+1 - z_t||^2  (optional, for Block 2)
+    loss = BCEWithLogits(mask_logits, mask_true) + _value * masked_MSE(value_hat, value_true | mask_true)
+          + _temporal * ||z_t+1 - z_t||^2  (optional, for Block 2)
     
     The mask channel captures sparsity/density patterns (primary signal: ~75% of AE performance).
     The value channel captures magnitude patterns conditioned on presence (remaining ~25%).
@@ -351,7 +351,7 @@ class MaskValueLoss(nn.Module):
     ----------
     pos_weight : float
         Weight for positive class in BCE loss (to handle class imbalance).
-        Typically: (# inactive cells) / (# active cells) �� 11-12 for CERT.
+        Typically: (# inactive cells) / (# active cells)  11-12 for CERT.
     lambda_value : float, optional
         Weight for masked value MSE term, default 1.0
     lambda_temporal : float, optional

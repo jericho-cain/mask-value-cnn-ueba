@@ -109,7 +109,7 @@ class CERTFixedWindowLoader:
         later windows for each user.
         
         Args:
-            bucket_hours: Time bucket size within window (Ît)
+            bucket_hours: Time bucket size within window (t)
             window_hours: Window size in hours (default 24)
             buffer_days: Temporal buffer around attacks (days)
             train_split: Fraction of normal windows for training (chronologically first X%)

@@ -294,8 +294,8 @@ def main():
     print("="*80)
     print()
     
-    print("Method                    | Scenario 1 PR-AUC | Scenario 3 PR-AUC")
-    print("-" * 70)
+    print("Method                    | Scenario 1 PR-AUC | Scenario 1 ROC-AUC | Scenario 3 PR-AUC | Scenario 3 ROC-AUC")
+    print("-" * 110)
     
     # Get top methods for scenario breakdown
     top_methods = df_summary.head(10)['method'].values
@@ -303,8 +303,10 @@ def main():
     for method_name in top_methods:
         res = [r for r in all_results if r['method'] == f"{method_name}_any"][0]
         scen1_pr = res.get('scenario_1_pr_auc', 0.0)
+        scen1_roc = res.get('scenario_1_roc_auc', 0.0)
         scen3_pr = res.get('scenario_3_pr_auc', 0.0)
-        print(f"{method_name:25s} | {scen1_pr:17.4f} | {scen3_pr:17.4f}")
+        scen3_roc = res.get('scenario_3_roc_auc', 0.0)
+        print(f"{method_name:25s} | {scen1_pr:17.4f} | {scen1_roc:18.4f} | {scen3_pr:17.4f} | {scen3_roc:18.4f}")
     
     print()
     

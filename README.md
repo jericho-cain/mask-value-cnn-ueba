@@ -55,7 +55,7 @@ pip install torch numpy pandas scikit-learn scipy matplotlib
 
 # CERT r4.2 Dataset (download from CMU)
 # https://kilthub.cmu.edu/articles/dataset/Insider_Threat_Test_Dataset/12841247
-# Extract to: data/cert/r4.2/
+# See DATA_ORGANIZATION.md for required directory layout (answers/insiders.csv, logon.csv, device.csv, http.csv, file.csv, email.csv under --data-dir).
 ```
 
 ### Run All Three Experiments
@@ -308,6 +308,7 @@ All experiments use **identical hyperparameters** except window size:
 
 ## Documentation
 
+- **[DATA_ORGANIZATION.md](DATA_ORGANIZATION.md)** – How to organize the dataset (directory layout, CERT r4.2, `--data-dir`).
 - **[docs/TRAJECTORY_LAB_NOTEBOOK.md](docs/TRAJECTORY_LAB_NOTEBOOK.md)** – Trajectory Phase 0/1 methodology, results, and interpretation (exp015, top-k aggregation).
 - **[docs/WINDOW_SIZE_ABLATION_README.md](docs/WINDOW_SIZE_ABLATION_README.md)** – Detailed replication guide for window ablation (12h, 24h, 48h).
 - **Replication:** This README contains all steps; run commands from the repo root.

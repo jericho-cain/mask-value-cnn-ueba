@@ -1,7 +1,7 @@
-"""Manifold UEBA model package.
+"""Mask-value CNN UEBA package.
 
-Geometric anomaly detection for user and entity behavior analytics using
-manifold learning on CNN autoencoder latent spaces.
+Dual-channel (mask + value) CNN autoencoder for behavioral anomaly detection,
+with top-k aggregation for trajectory-level campaign detection.
 """
 
 import logging
@@ -22,10 +22,8 @@ from manifold_ueba.data import (
     TemporalPairedMaskValueSeqDataset,
     compute_stats,
 )
-from manifold_ueba.grid_search import GridSearchResult, grid_search_alpha_beta
 from manifold_ueba.latent_manifold import UEBALatentManifold, UEBAManifoldConfig
-from manifold_ueba.manifold_scorer import UEBAManifoldScorer, UEBAManifoldScorerConfig
-from manifold_ueba.trajectory import TrajectoryAnalyzer, TrajectoryConfig, create_trajectories_from_sequences
+from manifold_ueba.trajectory import TrajectoryAnalyzer, TrajectoryConfig
 
 __all__ = [
     # CNN Autoencoder
@@ -36,18 +34,12 @@ __all__ = [
     "masked_value_mse",
     "MaskValueLoss",
     "prepare_ueba_sequences_for_cnn",
-    # Manifold Learning
+    # Latent manifold (k-NN, off-manifold distance)
     "UEBALatentManifold",
     "UEBAManifoldConfig",
-    # Scoring
-    "UEBAManifoldScorer",
-    "UEBAManifoldScorerConfig",
-    "grid_search_alpha_beta",
-    "GridSearchResult",
-    # Trajectory Analysis
+    # Trajectory analysis (geodesic deviation)
     "TrajectoryAnalyzer",
     "TrajectoryConfig",
-    "create_trajectories_from_sequences",
     # Data utilities
     "SeqDataset",
     "WeightedSeqDataset",

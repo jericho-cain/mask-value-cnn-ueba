@@ -353,7 +353,7 @@ This repository provides:
 ## Contact
 
 For questions about this work, please open a GitHub issue or contact:
-- Email: [your email]
+- Email: <jericho.cain@gmail.com>
 - GitHub: [@jericho-cain](https://github.com/jericho-cain)
 
 ---

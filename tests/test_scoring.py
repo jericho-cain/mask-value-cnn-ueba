@@ -3,8 +3,8 @@
 import numpy as np
 import torch
 
-import manifold_ueba as pkg
-from manifold_ueba.scoring import score_windows_mask_value
+import mv_ueba as pkg
+from mv_ueba.scoring import score_windows_mask_value
 
 
 def test_score_windows_mask_value_returns_expected_keys() -> None:

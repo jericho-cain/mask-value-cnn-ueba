@@ -47,12 +47,12 @@ from torch.utils.data import DataLoader
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from manifold_ueba.cnn_model import UEBACNNAutoencoder, weighted_mse_loss, two_term_mse_loss, MaskValueLoss
-from manifold_ueba.data import SeqDataset, WeightedSeqDataset, MaskValueSeqDataset, TemporalPairedMaskValueSeqDataset, compute_stats
-from manifold_ueba.scoring import score_windows_mask_value, score_windows_standard
-from manifold_ueba.etl.cert_fixed_window import CERTFixedWindowLoader
-from manifold_ueba.latent_manifold import UEBALatentManifold, UEBAManifoldConfig
-from manifold_ueba.trajectory import TrajectoryAnalyzer, TrajectoryConfig
+from mv_ueba.cnn_model import UEBACNNAutoencoder, weighted_mse_loss, two_term_mse_loss, MaskValueLoss
+from mv_ueba.data import SeqDataset, WeightedSeqDataset, MaskValueSeqDataset, TemporalPairedMaskValueSeqDataset, compute_stats
+from mv_ueba.scoring import score_windows_mask_value, score_windows_standard
+from mv_ueba.etl.cert_fixed_window import CERTFixedWindowLoader
+from mv_ueba.latent_manifold import UEBALatentManifold, UEBAManifoldConfig
+from mv_ueba.trajectory import TrajectoryAnalyzer, TrajectoryConfig
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)

@@ -209,13 +209,13 @@ Pre-generated comparison plots are included:
 
 **CNN Autoencoder:**
 - **Input:** (T, F) where T = time buckets, F = 12 behavioral features
-- **Encoding:** TÃ—F  (T/2)Ã—(F/2)  (T/4)Ã—(F/4)  latent_dim=32
-- **Decoding:** Symmetric upsampling back to TÃ—F
+- **Encoding:** T×F  (T/2)×(F/2)  (T/4)×(F/4)  latent_dim=32
+- **Decoding:** Symmetric upsampling back to T×F
 - **Loss:** Dual-channel (mask + value) with temporal smoothness regularization
 
 **Hyperparameters (fixed across all experiments):**
-- Î»_value = 0.02 (value loss weight)
-- Î»_temporal = 0.02 (temporal consistency weight)
+- ?_value = 0.02 (value loss weight)
+- ?_temporal = 0.02 (temporal consistency weight)
 - pos_weight = ~10.4 (class imbalance correction, computed per experiment)
 - Epochs = 50
 - Batch size = 32
@@ -260,7 +260,7 @@ Pre-generated comparison plots are included:
 - Data loader: deterministic ordering with seed
 
 ### Expected Variation
-- Results should be within Â±2% PR-AUC due to:
+- Results should be within ±2% PR-AUC due to:
   - Hardware differences (CPU vs GPU)
   - Minor numerical precision differences
   - Library version differences
@@ -280,20 +280,20 @@ If you use this work, please cite:
 ## File Structure
 
 ```
-manifold-ueba/
+mask-value-cnn-ueba/
  README.md                              # This file
  examples/
-‚    exp005_fixed_window_pipeline.py   # Main experiment script
- manifold_ueba/
-‚    __init__.py
-‚    cnn_model.py                      # CNN autoencoder
-‚    data.py                           # Dataset classes
-‚    latent_manifold.py                # Manifold construction
-‚    trajectory.py                     # Trajectory scoring
-‚    scoring.py                        # Anomaly scoring
-‚    etl/
-‚        __init__.py
-‚        cert_fixed_window.py          # Data loader
+?    exp005_fixed_window_pipeline.py   # Main experiment script
+ mv_ueba/
+?    __init__.py
+?    cnn_model.py                      # CNN autoencoder
+?    data.py                           # Dataset classes
+?    latent_manifold.py                # Manifold construction
+?    trajectory.py                     # Trajectory scoring
+?    scoring.py                        # Anomaly scoring
+?    etl/
+?        __init__.py
+?        cert_fixed_window.py          # Data loader
  runs/
      exp012_lambda002_temp002/         # 24h results 
      exp013_12hour_lambda002_temp002/  # 12h results

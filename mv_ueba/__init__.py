@@ -6,7 +6,7 @@ with top-k aggregation for trajectory-level campaign detection.
 
 import logging
 
-from manifold_ueba.cnn_model import (
+from mv_ueba.cnn_model import (
     UEBACNNAutoencoder,
     prepare_ueba_sequences_for_cnn,
     sequence_mse_2d,
@@ -15,15 +15,15 @@ from manifold_ueba.cnn_model import (
     masked_value_mse,
     MaskValueLoss,
 )
-from manifold_ueba.data import (
+from mv_ueba.data import (
     SeqDataset,
     WeightedSeqDataset,
     MaskValueSeqDataset,
     TemporalPairedMaskValueSeqDataset,
     compute_stats,
 )
-from manifold_ueba.latent_manifold import UEBALatentManifold, UEBAManifoldConfig
-from manifold_ueba.trajectory import TrajectoryAnalyzer, TrajectoryConfig
+from mv_ueba.latent_manifold import UEBALatentManifold, UEBAManifoldConfig
+from mv_ueba.trajectory import TrajectoryAnalyzer, TrajectoryConfig
 
 __all__ = [
     # CNN Autoencoder
@@ -56,7 +56,7 @@ STREAM_HANDLER = logging.StreamHandler()
 STREAM_HANDLER.setLevel(logging.INFO)
 FORMATTER = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 STREAM_HANDLER.setFormatter(FORMATTER)
-MAIN_LOGGER = logging.getLogger("manifold_ueba")
+MAIN_LOGGER = logging.getLogger("mv_ueba")
 MAIN_LOGGER.setLevel(logging.INFO)
 if not MAIN_LOGGER.handlers:
     MAIN_LOGGER.addHandler(STREAM_HANDLER)

@@ -3,7 +3,7 @@
 import numpy as np
 import torch
 
-import manifold_ueba as pkg
+import mv_ueba as pkg
 
 
 def test_version_present() -> None:

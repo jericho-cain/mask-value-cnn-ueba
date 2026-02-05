@@ -88,7 +88,7 @@ def main():
     stride = config['traj_stride']
     
     # Load test metadata
-    from manifold_ueba.etl.cert_fixed_window import CERTFixedWindowLoader
+    from mv_ueba.etl.cert_fixed_window import CERTFixedWindowLoader
     
     data_dir = config['data_dir']
     loader = CERTFixedWindowLoader(data_dir=data_dir)

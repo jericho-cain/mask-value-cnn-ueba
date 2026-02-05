@@ -2,7 +2,7 @@
 
 import numpy as np
 
-import manifold_ueba as pkg
+import mv_ueba as pkg
 
 
 def test_manifold_fit_and_normal_deviation() -> None:

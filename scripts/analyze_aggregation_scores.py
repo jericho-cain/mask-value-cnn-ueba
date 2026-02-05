@@ -142,7 +142,7 @@ def main():
     # We need to reconstruct the sliding window structure
     
     # Load the test metadata to get user_id structure
-    from manifold_ueba.etl.cert_fixed_window import CERTFixedWindowLoader
+    from mv_ueba.etl.cert_fixed_window import CERTFixedWindowLoader
     
     data_dir = config['data_dir']
     loader = CERTFixedWindowLoader(data_dir=data_dir)

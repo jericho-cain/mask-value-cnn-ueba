@@ -3,9 +3,9 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "manifold-ueba"
+name = "mv-ueba"
 version = "0.1.0"
-description = "Manifold-based UEBA: Geometric anomaly detection using CNN autoencoders and manifold learning"
+description = "Mask-value CNN UEBA: dual-channel autoencoder and trajectory-level anomaly detection"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
@@ -32,7 +32,7 @@ zip-safe = false
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["manifold_ueba*"]
+include = ["mv_ueba*"]
 
 [tool.black]
 line-length = 100
@@ -55,7 +55,7 @@ select = ["E", "F", "I", "B", "UP"]
 ignore = []
 
 [tool.ruff.lint.isort]
-known-first-party = ["manifold_ueba"]
+known-first-party = ["mv_ueba"]
 
 [tool.mypy]
 python_version = "3.10"

@@ -20,7 +20,7 @@ normal training data and attack periods.
 Dataset source: https://kilthub.cmu.edu/articles/dataset/Insider_Threat_Test_Dataset/12841247
 
 Usage:
-    from manifold_ueba.etl.cert_fixed_window import CERTFixedWindowLoader
+    from mv_ueba.etl.cert_fixed_window import CERTFixedWindowLoader
     
     loader = CERTFixedWindowLoader(data_dir="data/cert/r4.2")
     train_data, test_data, test_labels, test_metadata = loader.load_fixed_windows(

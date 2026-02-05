@@ -52,6 +52,11 @@ CHANGELOG.md
 CURRENT_STATE_SUMMARY.md
 DOCUMENTATION_ORGANIZED.md
 MODEL_ARCHITECTURE_CHANGE_LOG.md
+HANDOFF.md
+DATA_ORGANIZATION.md
+
+# Cursor / local-only (rules, handoff context)
+.cursor/
 
 # Analysis and diagnostic scripts (not needed for replication)
 analyze_loss_sweep.py

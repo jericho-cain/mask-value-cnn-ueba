@@ -2,7 +2,7 @@
 
 import numpy as np
 
-import manifold_ueba as pkg
+import mv_ueba as pkg
 
 
 def test_trajectory_analyzer_scores_sequence() -> None:

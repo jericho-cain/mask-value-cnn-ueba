@@ -184,7 +184,7 @@ See **[docs/TRAJECTORY_LAB_NOTEBOOK.md](docs/TRAJECTORY_LAB_NOTEBOOK.md)** for m
 ## Repository Structure
 
 ```
-manifold-ueba/
+mask-value-cnn-ueba/
  README.md                                    # This file
  docs/
     TRAJECTORY_LAB_NOTEBOOK.md                 # Trajectory Phase 0/1 methodology and results
@@ -194,7 +194,7 @@ manifold-ueba/
  scripts/
     analyze_aggregation_scores.py             # Phase 1: aggregation comparison (top-k, sum, mean)
     plot_trajectory_pr_curves.py              # PR curves for Scenario 1 and 3 (top-2 mask)
- manifold_ueba/
+ mv_ueba/
     cnn_model.py                              # CNN autoencoder (flexible architecture)
     data.py                                   # Dataset classes with temporal pairing
     latent_manifold.py                        # Manifold construction

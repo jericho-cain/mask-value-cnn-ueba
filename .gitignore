@@ -42,8 +42,12 @@ data/
 # Model files (too large for repo)
 *.pt
 
-# Documentation (not needed for replication)
-docs/
+# Documentation: ignore docs/ except these two (public replication docs)
+docs/*
+!docs/TRAJECTORY_LAB_NOTEBOOK.md
+!docs/WINDOW_SIZE_ABLATION_README.md
+
+# Other doc files (local-only)
 CHANGELOG.md
 CURRENT_STATE_SUMMARY.md
 DOCUMENTATION_ORGANIZED.md

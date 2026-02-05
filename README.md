@@ -119,7 +119,7 @@ python examples/exp005_fixed_window_pipeline.py \
 After Step 1, run (no retraining; uses `data_dir` from `runs/exp015_unified_traj/config.json`):
 
 ```bash
-python analyze_aggregation_scores.py
+python scripts/analyze_aggregation_scores.py
 ```
 
 **Runtime:** ~2–3 minutes (loads CERT and recomputes trajectory–window mapping).
@@ -130,7 +130,7 @@ python analyze_aggregation_scores.py
 ### Step 3: Trajectory PR curves (Scenario 1 and 3)
 
 ```bash
-python plot_trajectory_pr_curves.py
+python scripts/plot_trajectory_pr_curves.py
 ```
 
 **Runtime:** ~2–3 minutes (loads CERT and config from exp015).
@@ -143,7 +143,7 @@ python plot_trajectory_pr_curves.py
 - **mask_bce_top2 (any-overlap):** PR-AUC 0.836, ROC-AUC 0.939.
 - **Per scenario (top2):** Scenario 1 – PR-AUC 0.816, ROC-AUC 0.933; Scenario 3 – PR-AUC 0.794, ROC-AUC 0.989.
 
-See **[TRAJECTORY_LAB_NOTEBOOK.md](TRAJECTORY_LAB_NOTEBOOK.md)** for methodology, Phase 0/1 results, and interpretation.
+See **[docs/TRAJECTORY_LAB_NOTEBOOK.md](docs/TRAJECTORY_LAB_NOTEBOOK.md)** for methodology, Phase 0/1 results, and interpretation.
 
 ---
 
@@ -186,12 +186,14 @@ See **[TRAJECTORY_LAB_NOTEBOOK.md](TRAJECTORY_LAB_NOTEBOOK.md)** for methodology
 ```
 manifold-ueba/
  README.md                                    # This file
- WINDOW_SIZE_ABLATION_README.md               # Detailed replication guide (window ablation)
- TRAJECTORY_LAB_NOTEBOOK.md                   # Trajectory Phase 0/1 methodology and results
- analyze_aggregation_scores.py                # Phase 1: aggregation comparison (top-k, sum, mean)
- plot_trajectory_pr_curves.py                 # PR curves for Scenario 1 and 3 (top-2 mask)
+ docs/
+    TRAJECTORY_LAB_NOTEBOOK.md                 # Trajectory Phase 0/1 methodology and results
+    WINDOW_SIZE_ABLATION_README.md             # Detailed replication guide (window ablation)
  examples/
     exp005_fixed_window_pipeline.py           # Main experiment script
+ scripts/
+    analyze_aggregation_scores.py             # Phase 1: aggregation comparison (top-k, sum, mean)
+    plot_trajectory_pr_curves.py              # PR curves for Scenario 1 and 3 (top-2 mask)
  manifold_ueba/
     cnn_model.py                              # CNN autoencoder (flexible architecture)
     data.py                                   # Dataset classes with temporal pairing
@@ -275,7 +277,7 @@ Individual PR curves by attack scenario available for each window size:
 | mask_bce_top3 | 0.768 | 0.913 | 0.746 | 0.618 |
 | geodesic (baseline) | 0.229 | 0.531 | 0.225 | 0.024 |
 
-**Note:** Unified per-user trajectory construction (Phase 0) plus top-k aggregation of window-level mask scores (Phase 1) shows the trajectory task is aggregation-limited; no curvature or Riemannian metrics required. See [TRAJECTORY_LAB_NOTEBOOK.md](TRAJECTORY_LAB_NOTEBOOK.md).
+**Note:** Unified per-user trajectory construction (Phase 0) plus top-k aggregation of window-level mask scores (Phase 1) shows the trajectory task is aggregation-limited; no curvature or Riemannian metrics required. See [docs/TRAJECTORY_LAB_NOTEBOOK.md](docs/TRAJECTORY_LAB_NOTEBOOK.md).
 
 ---
 
@@ -306,10 +308,11 @@ All experiments use **identical hyperparameters** except window size:
 
 ## Documentation
 
-- **[WINDOW_SIZE_ABLATION_README.md](WINDOW_SIZE_ABLATION_README.md)** - Complete replication instructions for window ablation (12h, 24h, 48h).
-- **[TRAJECTORY_LAB_NOTEBOOK.md](TRAJECTORY_LAB_NOTEBOOK.md)** - Trajectory Phase 0/1 methodology, results, and interpretation (exp015, top-k aggregation).
-- **Expected Outputs:** JSON results and PNG visualizations in `runs/` for both ablation and trajectory experiments.
-- **No trained models:** Excluded due to size; reproducible via training script.
+- **[docs/TRAJECTORY_LAB_NOTEBOOK.md](docs/TRAJECTORY_LAB_NOTEBOOK.md)** – Trajectory Phase 0/1 methodology, results, and interpretation (exp015, top-k aggregation).
+- **[docs/WINDOW_SIZE_ABLATION_README.md](docs/WINDOW_SIZE_ABLATION_README.md)** – Detailed replication guide for window ablation (12h, 24h, 48h).
+- **Replication:** This README contains all steps; run commands from the repo root.
+- **Expected outputs:** JSON results and PNG visualizations in `runs/` for both ablation and trajectory experiments.
+- **No trained models:** Excluded due to size; reproducible via the pipeline script.
 
 ---
 

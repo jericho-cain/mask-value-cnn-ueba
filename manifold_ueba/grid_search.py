@@ -190,7 +190,7 @@ def grid_search_alpha_beta(
             all_results[(alpha, beta)] = metrics
             
             if verbose:
-                print(f" → AUC: {metrics['auc']:.4f}, F1: {metrics['f1']:.4f}")
+                print(f"  AUC: {metrics['auc']:.4f}, F1: {metrics['f1']:.4f}")
             
             # Track best configuration
             if metrics['auc'] > best_auc:

@@ -1,26 +1,35 @@
 """
-Trajectory Analysis on CERT Dataset
+Trajectory Analysis on CERT Dataset (User-Level Evaluation)
+
+**STATUS: DEPRECATED - Superseded by segment_based_pipeline.py (exp004)**
+
+This script implements trajectory-based detection with user-level evaluation
+used in exp002/exp003. Preserved for reproducing baseline experiments.
+
+**Why deprecated:**
+- User-level evaluation (50 normal vs 70 malicious users)
+- Low temporal precision (9.9% in exp003)
+- Doesn't reflect production deployment
+
+**For new experiments, use:** `examples/segment_based_pipeline.py`
+**See:** EXPERIMENTS.md for experiment evolution
+
+---
 
 This script tests geodesic deviation (trajectory-based anomaly detection)
-on CERT insider threat data with appropriate attack selection based on
-attack duration vs. temporal resolution.
+on CERT insider threat data with user-level train/test split.
 
-Usage:
-    # Run trajectory analysis from experiment directory
-    python examples/trajectory_analysis.py --load-experiment runs/exp001_50users_1hr_baseline
+Usage (for reproducing exp002/exp003 only):
+    python examples/trajectory_analysis.py --load-experiment runs/exp002_baseline
 
-    # Or specify paths directly
-    python examples/trajectory_analysis.py \
-        --load-processed data/cert_processed_50users.npz \
-        --load-model data/cert_model.pt \
-        --load-manifold data/cert_manifold.npz
+For full details on experiment history and current approach, see EXPERIMENTS.md
 """
 
 import argparse
 import json
 import logging
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import numpy as np
@@ -58,6 +67,29 @@ def get_attack_durations(data_dir: Path) -> pd.DataFrame:
     r42["duration_hours"] = (r42["end_dt"] - r42["start_dt"]).dt.total_seconds() / 3600
     
     return r42[["user", "scenario", "duration_hours", "start_dt", "end_dt"]]
+
+
+def load_attack_windows(data_dir: Path) -> dict:
+    """Load attack time windows from CERT answers file.
+    
+    Returns dict mapping user_id -> {'start': datetime, 'end': datetime, 'scenario': int}
+    """
+    attacks_df = get_attack_durations(data_dir)
+    if attacks_df.empty:
+        return {}
+    
+    # Build mapping
+    attack_windows = {}
+    for _, row in attacks_df.iterrows():
+        user = row["user"]
+        attack_windows[user] = {
+            'start': row["start_dt"].to_pydatetime(),
+            'end': row["end_dt"].to_pydatetime(),
+            'scenario': int(row["scenario"])
+        }
+    
+    logger.info(f"Loaded attack windows for {len(attack_windows)} malicious users")
+    return attack_windows
 
 
 def parse_args():
@@ -113,14 +145,14 @@ def setup_experiment(args) -> Path | None:
         if model_path.exists():
             args.load_model = str(model_path)
         else:
-            raise ValueError(f"model.pt not found in {exp_dir}")
+            logger.warning(f"model.pt not found in {exp_dir}, will need to be specified explicitly")
     
     if not args.load_manifold:
         manifold_path = exp_dir / "manifold.npz"
         if manifold_path.exists():
             args.load_manifold = str(manifold_path)
         else:
-            raise ValueError(f"manifold.npz not found in {exp_dir}")
+            logger.warning(f"manifold.npz not found in {exp_dir}, will need to be specified explicitly")
     
     logger.info(f"Loading from experiment: {exp_dir}")
     return exp_dir
@@ -157,13 +189,27 @@ def main():
     
     # Load processed data
     logger.info(f"\nLoading processed data from {args.load_processed}")
-    data = np.load(args.load_processed)
+    data = np.load(args.load_processed, allow_pickle=True)
     train_data = data['train_data']
     test_data = data['test_data']
     test_labels = data['test_labels']
     
+    # Load user IDs, timestamps, and scenarios if available
+    test_user_ids = data['test_user_ids'] if 'test_user_ids' in data else None
+    test_timestamps = data['test_timestamps'] if 'test_timestamps' in data else None
+    test_scenarios = data['test_scenarios'] if 'test_scenarios' in data else None
+    
     logger.info(f"  Train: {train_data.shape}, Test: {test_data.shape}")
     logger.info(f"  Malicious test samples: {test_labels.sum()}")
+    if test_user_ids is not None:
+        n_malicious_users = len(np.unique(test_user_ids[test_labels == 1]))
+        n_normal_users = len(np.unique(test_user_ids[test_labels == 0]))
+        logger.info(f"  Unique users in test: {n_normal_users} normal, {n_malicious_users} malicious")
+    if test_scenarios is not None:
+        for s in [1, 2, 3]:
+            count = (test_scenarios == s).sum()
+            if count > 0:
+                logger.info(f"  Scenario {s}: {count} sequences")
     
     # Load model
     logger.info(f"\nLoading model from {args.load_model}")
@@ -242,17 +288,45 @@ def main():
     normal_latents = test_latents[normal_mask]
     malicious_latents = test_latents[malicious_mask]
     
+    # Get user IDs and scenarios for normal/malicious if available
+    normal_user_ids = test_user_ids[normal_mask] if test_user_ids is not None else None
+    malicious_user_ids = test_user_ids[malicious_mask] if test_user_ids is not None else None
+    malicious_scenarios_arr = test_scenarios[malicious_mask] if test_scenarios is not None else None
+    
     logger.info(f"\nTest set: {len(normal_latents)} normal, {len(malicious_latents)} malicious samples")
     
-    # Create trajectories (sliding window)
-    def create_trajectories(latents, window_size, stride):
+    # Create trajectories (sliding window) with user ID, scenario, and timestamp tracking
+    def create_trajectories_with_metadata(latents, user_ids, scenarios, timestamps, window_size, stride):
+        """Create trajectories and track which user/scenario/timestamp each trajectory belongs to."""
         trajectories = []
+        traj_user_ids = []
+        traj_scenarios = []
+        traj_timestamps = []
         for i in range(0, len(latents) - window_size + 1, stride):
             trajectories.append(latents[i:i + window_size])
-        return trajectories
+            # Assign trajectory to user/scenario/timestamp of the first sample in window
+            if user_ids is not None:
+                traj_user_ids.append(user_ids[i])
+            if scenarios is not None:
+                traj_scenarios.append(scenarios[i])
+            if timestamps is not None:
+                traj_timestamps.append(timestamps[i])
+        return (
+            trajectories,
+            traj_user_ids if user_ids is not None else None,
+            traj_scenarios if scenarios is not None else None,
+            traj_timestamps if timestamps is not None else None
+        )
     
-    normal_trajectories = create_trajectories(normal_latents, args.window_size, stride)
-    malicious_trajectories = create_trajectories(malicious_latents, args.window_size, stride)
+    normal_traj_timestamps = test_timestamps[normal_mask] if test_timestamps is not None else None
+    malicious_traj_timestamps_arr = test_timestamps[malicious_mask] if test_timestamps is not None else None
+    
+    normal_trajectories, normal_traj_users, _, normal_traj_ts = create_trajectories_with_metadata(
+        normal_latents, normal_user_ids, None, normal_traj_timestamps, args.window_size, stride
+    )
+    malicious_trajectories, malicious_traj_users, malicious_traj_scenarios, malicious_traj_ts = create_trajectories_with_metadata(
+        malicious_latents, malicious_user_ids, malicious_scenarios_arr, malicious_traj_timestamps_arr, args.window_size, stride
+    )
     
     logger.info(f"Trajectories (window={args.window_size}, stride={stride}):")
     logger.info(f"  Normal: {len(normal_trajectories)}")
@@ -405,6 +479,191 @@ def main():
     point_cm, point_f1, point_thresh = compute_optimal_f1_confusion(all_point_labels, all_point_scores, "Point-based")
     traj_cm, traj_f1, traj_thresh = compute_optimal_f1_confusion(all_traj_labels, all_traj_scores, "Trajectory-based")
     
+    # User-level metrics (if user IDs available)
+    user_level_results = None
+    if malicious_traj_users is not None and normal_traj_users is not None:
+        logger.info("\n" + "-" * 60)
+        logger.info("User-Level Detection Metrics")
+        logger.info("-" * 60)
+        
+        # For each user, check if ANY of their trajectories exceed threshold
+        def compute_user_level_detection(traj_scores, traj_users, threshold):
+            """Compute which users have at least one trajectory above threshold."""
+            users_detected = set()
+            all_users = set(traj_users)
+            
+            for score, user in zip(traj_scores, traj_users):
+                if score >= threshold:
+                    users_detected.add(user)
+            
+            return users_detected, all_users
+        
+        # At trajectory optimal threshold
+        malicious_users_detected, all_malicious_users = compute_user_level_detection(
+            malicious_scores, malicious_traj_users, traj_thresh
+        )
+        normal_users_flagged, all_normal_users = compute_user_level_detection(
+            normal_scores, normal_traj_users, traj_thresh
+        )
+        
+        n_malicious_detected = len(malicious_users_detected)
+        n_malicious_total = len(all_malicious_users)
+        n_normal_flagged = len(normal_users_flagged)
+        n_normal_total = len(all_normal_users)
+        
+        user_recall = n_malicious_detected / n_malicious_total if n_malicious_total > 0 else 0
+        user_fpr = n_normal_flagged / n_normal_total if n_normal_total > 0 else 0
+        
+        logger.info(f"\nAt trajectory optimal threshold ({traj_thresh:.4f}):")
+        logger.info(f"  Malicious users detected: {n_malicious_detected}/{n_malicious_total} ({user_recall:.1%})")
+        logger.info(f"  Normal users falsely flagged: {n_normal_flagged}/{n_normal_total} ({user_fpr:.1%})")
+        
+        # List which malicious users were missed (if any)
+        missed_users = all_malicious_users - malicious_users_detected
+        if missed_users:
+            logger.info(f"  Missed malicious users: {sorted(missed_users)}")
+        
+        user_level_results = {
+            'threshold': float(traj_thresh),
+            'n_malicious_users_total': n_malicious_total,
+            'n_malicious_users_detected': n_malicious_detected,
+            'user_recall': float(user_recall),
+            'n_normal_users_total': n_normal_total,
+            'n_normal_users_flagged': n_normal_flagged,
+            'user_fpr': float(user_fpr),
+            'missed_users': list(missed_users) if missed_users else [],
+        }
+    
+    # Scenario-level metrics (if scenarios available)
+    scenario_level_results = None
+    if malicious_traj_scenarios is not None:
+        logger.info("\n" + "-" * 60)
+        logger.info("Scenario-Level Detection Metrics")
+        logger.info("-" * 60)
+        
+        scenario_results = {}
+        for scenario in sorted(set(malicious_traj_scenarios)):
+            # Get trajectories for this scenario
+            scenario_mask = [s == scenario for s in malicious_traj_scenarios]
+            scenario_scores = [malicious_scores[i] for i, m in enumerate(scenario_mask) if m]
+            scenario_users = [malicious_traj_users[i] for i, m in enumerate(scenario_mask) if m] if malicious_traj_users else None
+            
+            n_traj = len(scenario_scores)
+            n_detected = sum(1 for s in scenario_scores if s >= traj_thresh)
+            traj_recall = n_detected / n_traj if n_traj > 0 else 0
+            
+            # User-level for this scenario
+            if scenario_users:
+                users_in_scenario = set(scenario_users)
+                users_detected = set()
+                for score, user in zip(scenario_scores, scenario_users):
+                    if score >= traj_thresh:
+                        users_detected.add(user)
+                n_users = len(users_in_scenario)
+                n_users_detected = len(users_detected)
+                user_recall_scenario = n_users_detected / n_users if n_users > 0 else 0
+                missed = users_in_scenario - users_detected
+            else:
+                n_users = n_users_detected = 0
+                user_recall_scenario = 0
+                missed = set()
+            
+            logger.info(f"\nScenario {scenario}:")
+            logger.info(f"  Trajectories: {n_detected}/{n_traj} detected ({traj_recall:.1%})")
+            if scenario_users:
+                logger.info(f"  Users: {n_users_detected}/{n_users} detected ({user_recall_scenario:.1%})")
+                if missed:
+                    logger.info(f"  Missed users: {sorted(missed)}")
+            
+            scenario_results[f"scenario_{scenario}"] = {
+                'n_trajectories': n_traj,
+                'n_trajectories_detected': n_detected,
+                'trajectory_recall': float(traj_recall),
+                'n_users': n_users,
+                'n_users_detected': n_users_detected,
+                'user_recall': float(user_recall_scenario),
+                'missed_users': list(missed) if missed else [],
+            }
+        
+        scenario_level_results = scenario_results
+    
+    # Temporal evaluation: match detections against attack windows
+    temporal_results = None
+    if test_timestamps is not None and test_user_ids is not None:
+        logger.info("\n" + "-" * 60)
+        logger.info("Temporal Precision Evaluation")
+        logger.info("-" * 60)
+        
+        # Load attack windows
+        attack_windows = load_attack_windows(Path(args.data_dir))
+        
+        if attack_windows and malicious_traj_ts is not None:
+            # Calculate trajectory span (window_size sequences, each 24 hours)
+            sequence_duration = timedelta(hours=24)  # Assuming 24-hour sequences
+            trajectory_window_span = args.window_size * sequence_duration
+            
+            # Classify trajectories as during-attack or not
+            attack_period_mask = []
+            non_attack_period_mask = []
+            
+            for i, (user, score, ts) in enumerate(zip(malicious_traj_users, malicious_scores, malicious_traj_ts)):
+                if ts is None or user not in attack_windows:
+                    continue
+                
+                attack_window = attack_windows[user]
+                # Check if trajectory overlaps with attack window
+                # Trajectory spans from ts to ts + trajectory_window_span
+                traj_start = pd.Timestamp(ts).to_pydatetime()
+                traj_end = traj_start + trajectory_window_span
+                
+                # Overlap if: traj_start < attack_end AND traj_end > attack_start
+                is_during_attack = (traj_start < attack_window['end'] and 
+                                   traj_end > attack_window['start'])
+                
+                if is_during_attack:
+                    attack_period_mask.append(i)
+                else:
+                    non_attack_period_mask.append(i)
+            
+            # Compute metrics for attack-period vs non-attack-period
+            if attack_period_mask:
+                attack_scores = [malicious_scores[i] for i in attack_period_mask]
+                n_attack_detected = sum(1 for s in attack_scores if s >= traj_thresh)
+                attack_recall = n_attack_detected / len(attack_scores) if attack_scores else 0
+                
+                logger.info(f"\nTrajectories during attack periods:")
+                logger.info(f"  Total: {len(attack_scores)}")
+                logger.info(f"  Detected: {n_attack_detected} ({attack_recall:.1%})")
+            
+            if non_attack_period_mask:
+                non_attack_scores = [malicious_scores[i] for i in non_attack_period_mask]
+                n_non_attack_detected = sum(1 for s in non_attack_scores if s >= traj_thresh)
+                non_attack_rate = n_non_attack_detected / len(non_attack_scores) if non_attack_scores else 0
+                
+                logger.info(f"\nTrajectories outside attack periods (normal behavior of malicious users):")
+                logger.info(f"  Total: {len(non_attack_scores)}")
+                logger.info(f"  Flagged: {n_non_attack_detected} ({non_attack_rate:.1%})")
+            
+            # Temporal precision: of all flagged trajectories, what % were during attacks?
+            all_flagged_indices = [i for i, s in enumerate(malicious_scores) if s >= traj_thresh]
+            flagged_during_attack = len(set(all_flagged_indices) & set(attack_period_mask))
+            temporal_precision = flagged_during_attack / len(all_flagged_indices) if all_flagged_indices else 0
+            
+            logger.info(f"\nTemporal Precision:")
+            logger.info(f"  Of {len(all_flagged_indices)} flagged malicious trajectories:")
+            logger.info(f"    {flagged_during_attack} were during attack periods ({temporal_precision:.1%})")
+            logger.info(f"    {len(all_flagged_indices) - flagged_during_attack} were during normal periods")
+            
+            temporal_results = {
+                'n_attack_period_trajectories': len(attack_period_mask),
+                'n_attack_period_detected': n_attack_detected if attack_period_mask else 0,
+                'attack_period_recall': float(attack_recall) if attack_period_mask else 0.0,
+                'n_non_attack_period_trajectories': len(non_attack_period_mask),
+                'n_non_attack_period_flagged': n_non_attack_detected if non_attack_period_mask else 0,
+                'non_attack_period_fpr': float(non_attack_rate) if non_attack_period_mask else 0.0,
+                'temporal_precision': float(temporal_precision),
+            }
+    
     # Save trajectory results to experiment directory
     if exp_dir:
         traj_results = {
@@ -442,6 +701,18 @@ def main():
                 'separation_pct': float(sep_imp),
             }
         }
+        
+        # Add user-level results if available
+        if user_level_results is not None:
+            traj_results['user_level'] = user_level_results
+        
+        # Add scenario-level results if available
+        if scenario_level_results is not None:
+            traj_results['scenario_level'] = scenario_level_results
+        
+        # Add temporal results if available
+        if temporal_results is not None:
+            traj_results['temporal_evaluation'] = temporal_results
         
         traj_results_path = exp_dir / "trajectory_results.json"
         with open(traj_results_path, 'w') as f:

@@ -1,3 +1,7 @@
+
+![Banner](assets/banner.png)
+
+
 # UEBA Anomaly Detection: Window Ablation and Trajectory Detection
 
 **Branch:** `feature/trajectory-detection` (created from `feature/window-size-ablation`)  

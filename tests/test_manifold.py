@@ -6,7 +6,13 @@ import mv_ueba as pkg
 
 
 def test_manifold_fit_and_normal_deviation() -> None:
-    """UEBALatentManifold fits on train latents and returns finite normal_deviation."""
+    """UEBALatentManifold fits on train latents; normal_deviation(z) expects single point (d,) and returns float.
+
+    Returns
+    -------
+    None
+        Asserts normal_deviation returns finite, non-negative float per test point.
+    """
     np.random.seed(42)
     N_train, N_test, d = 50, 10, 32
     train_latents = np.random.randn(N_train, d).astype(np.float32) * 0.5
@@ -14,15 +20,21 @@ def test_manifold_fit_and_normal_deviation() -> None:
     config = pkg.UEBAManifoldConfig(k_neighbors=5, tangent_dim=4)
 
     manifold = pkg.UEBALatentManifold(train_latents, config)
-    scores = manifold.normal_deviation(test_latents)
-
-    assert scores.shape == (N_test,)
-    assert np.isfinite(scores).all()
-    assert (scores >= 0).all()
+    for i in range(N_test):
+        score = manifold.normal_deviation(test_latents[i])
+        assert np.isfinite(score)
+        assert score >= 0
+        assert isinstance(score, (float, np.floating))
 
 
 def test_manifold_density_score() -> None:
-    """UEBALatentManifold.density_score returns a scalar float."""
+    """UEBALatentManifold.density_score returns a scalar float.
+
+    Returns
+    -------
+    None
+        Asserts score is float, finite, and non-negative.
+    """
     np.random.seed(43)
     N, d = 30, 16
     train_latents = np.random.randn(N, d).astype(np.float32)

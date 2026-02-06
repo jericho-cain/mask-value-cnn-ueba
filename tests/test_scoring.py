@@ -8,7 +8,13 @@ from mv_ueba.scoring import score_windows_mask_value
 
 
 def test_score_windows_mask_value_returns_expected_keys() -> None:
-    """score_windows_mask_value returns dict with mask_bce, latent, etc."""
+    """score_windows_mask_value returns dict with mask_bce, latent, and expected shapes.
+
+    Returns
+    -------
+    None
+        Asserts keys mask_bce, latent; shapes (N,) and (N, latent_dim); finite values.
+    """
     N, T, F = 6, 24, 12
     latent_dim = 32
     model = pkg.UEBACNNAutoencoder(time_steps=T, n_features=F, latent_dim=latent_dim)
@@ -30,7 +36,13 @@ def test_score_windows_mask_value_returns_expected_keys() -> None:
 
 
 def test_score_windows_mask_value_has_total_or_ae_keys() -> None:
-    """Scoring output includes combined/total score used by pipeline."""
+    """Scoring output includes combined/total score used by pipeline.
+
+    Returns
+    -------
+    None
+        Asserts 'total' or 'mask_bce' present; if total, shape (N,) and finite.
+    """
     N, T, F = 4, 24, 12
     model = pkg.UEBACNNAutoencoder(time_steps=T, n_features=F, latent_dim=16)
     model.eval()

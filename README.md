@@ -4,8 +4,9 @@
 
 # UEBA Anomaly Detection: Window Ablation and Trajectory Detection
 
-**Branch:** `feature/trajectory-detection` (created from `feature/window-size-ablation`)  
-**Papers:** (1) Temporal Window Size Selection for CNN-Based Behavioral Anomaly Detection; (2) Trajectory-Level Insider Threat Detection via Top-k Aggregation
+[![arXiv](https://img.shields.io/badge/arXiv-2602.11019-b31b1b.svg)](https://arxiv.org/abs/2602.11019)
+
+**Papers:** (1) Mask-Based Window-Level Insider Threat Detection for Campaign Discovery (arXiv:2602.11019, submitted IEEE); (2) Temporal Window Size Selection; (3) Trajectory-Level Detection via Top-k Aggregation
 
 ---
 
@@ -323,14 +324,17 @@ All experiments use **identical hyperparameters** except window size:
 
 ## Citation
 
-If you use this work, please cite:
+If you use this work, please cite the mask-based window-level detection paper:
 
 ```bibtex
-@article{cain2026window,
-  title={Temporal Window Size Selection for CNN-Based Behavioral Anomaly Detection},
-  author={Cain, Jericho},
-  journal={[Journal TBD]},
-  year={2026}
+@misc{cain2026maskbasedwindowlevelinsiderthreat,
+      title={Mask-Based Window-Level Insider Threat Detection for Campaign Discovery},
+      author={Jericho Cain and Hayden Beadles},
+      year={2026},
+      eprint={2602.11019},
+      archivePrefix={arXiv},
+      primaryClass={cs.CR},
+      url={https://arxiv.org/abs/2602.11019},
 }
 ```
 
@@ -365,5 +369,4 @@ MIT License - see LICENSE file for details.
 ---
 
 **Last Updated:** February 2026  
-**Status:**  Paper submission ready (window ablation + trajectory detection)  
-**Branch:** `feature/trajectory-detection` (branched from `feature/window-size-ablation`)
+**Status:**  arXiv:2602.11019; submitted to IEEE. Paper replication (window ablation + trajectory detection).
